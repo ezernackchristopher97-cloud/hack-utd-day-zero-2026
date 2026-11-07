@@ -2,7 +2,9 @@ const byId = id => document.getElementById(id);
 const state = {
   data: null,
   minute: 0,
+  position: 0,
   timer: null,
+  chart: null,
   selected: null,
   staged: null,
   applied: null,
@@ -19,6 +21,7 @@ const bits = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const percent = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 });
 const svgNS = "http://www.w3.org/2000/svg";
 const featuredOptions = 3;
+let retryLoad;
 
 function element(tag, className, content) {
   const node = document.createElement(tag);
@@ -58,6 +61,13 @@ function point(trace, minute) {
   return trace[Math.min(minute, trace.length - 1)];
 }
 
+function readingAt(trace, position) {
+  const minute = Math.floor(position);
+  const sample = point(trace, minute);
+  const next = point(trace, minute + 1);
+  return sample.level + ((next.before ?? next.level) - sample.level) * (position - minute);
+}
+
 function stateName() {
   if (state.staged) return "Staged";
   if (state.applied) return "Applied";
@@ -69,12 +79,19 @@ function scenarioPath(id = state.data.scenario.id) {
 }
 
 async function json(url, init) {
-  const response = await fetch(url, { cache: "no-store", ...init });
-  if (!response.ok) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(url, { cache: "no-store", ...init, signal: controller.signal });
+    if (response.ok) return await response.json();
     const error = await response.json().catch(() => null);
     throw new Error(error?.error || `Request failed (${response.status}).`);
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("The local server took too long to answer. Check Terminal and try again.");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return response.json();
 }
 
 function activeForecast() {
@@ -91,8 +108,9 @@ function resetHandoff() {
 }
 
 function stopPlayback() {
-  clearInterval(state.timer);
+  if (state.timer !== null) cancelAnimationFrame(state.timer);
   state.timer = null;
+  document.body.classList.remove("is-playing");
   text("play-icon", "▶");
   text("play-label", "Play");
 }
@@ -100,21 +118,48 @@ function stopPlayback() {
 function goTo(minute) {
   if (!state.data) return;
   state.minute = Math.max(0, Math.min(minute, state.data.scenario.horizon));
+  state.position = state.minute;
   renderTime();
 }
 
-function togglePlayback() {
-  if (state.timer) {
-    stopPlayback();
-    return;
-  }
-  if (state.minute === state.data.scenario.horizon) goTo(0);
+function startPlayback() {
+  if (state.busy || !state.data || state.timer !== null) return;
+  const { horizon } = state.data.scenario;
+  if (state.position >= horizon) goTo(0);
+  document.body.classList.add("is-playing");
   text("play-icon", "Ⅱ");
   text("play-label", "Pause");
-  state.timer = setInterval(() => {
-    goTo(state.minute + 1);
-    if (state.minute === state.data.scenario.horizon) stopPlayback();
-  }, 290);
+  let previous;
+  const millisecondsPerMinute = Math.min(320, 18000 / horizon);
+  const advance = now => {
+    if (previous != null) {
+      state.position = Math.min(horizon, state.position + (now - previous) / millisecondsPerMinute);
+      const minute = Math.floor(state.position);
+      if (minute !== state.minute) {
+        state.minute = minute;
+        renderTime();
+      } else {
+        renderMotion();
+      }
+    }
+    previous = now;
+    if (state.position >= horizon) stopPlayback();
+    else state.timer = requestAnimationFrame(advance);
+  };
+  state.timer = requestAnimationFrame(advance);
+}
+
+function togglePlayback() {
+  if (state.timer !== null) stopPlayback();
+  else startPlayback();
+}
+
+function playFromStart() {
+  stopPlayback();
+  goTo(0);
+  byId("play").focus({ preventScroll: true });
+  byId("forecast").scrollIntoView({ block: "start" });
+  startPlayback();
 }
 
 function deadlineText(forecast) {
@@ -154,6 +199,19 @@ function renderTime() {
   text("response-detail", state.staged ? option(state.staged).label : state.applied ? option(state.applied).label : "No response applied");
   renderChart(baseline, option(state.selected));
   renderDependencies(active, observed);
+  for (const step of byId("actions").children) {
+    step.dataset.phase = state.minute < Number(step.dataset.start) ? "waiting" :
+      state.minute >= Number(step.dataset.end) ? "done" : "active";
+  }
+  const currentActions = selectedActions().filter(action => action.delay <= state.minute);
+  const lastAction = currentActions.at(-1);
+  const reading = evidence.observation;
+  let message = "Watch the no-action and response readings change as the replay moves.";
+  if (reading && state.minute < reading.delay) message = `Field reading due at ${time(reading.delay)}.`;
+  else if (lastAction) message = `${time(lastAction.delay)} · ${lastAction.label}${state.applied ? " in the simulation" : " in the response forecast"}.`;
+  else if (reading) message = `${time(reading.delay)} · ${reading.label}.`;
+  if (state.minute === scenario.horizon) message = `Replay complete at ${time(scenario.horizon)}. ${message}`;
+  if (byId("replay-message").textContent !== message) text("replay-message", message);
 }
 
 function makePath(points, x, y, key) {
@@ -237,22 +295,32 @@ function renderChart(baseline, selected) {
     line(x(reading.delay), top, x(reading.delay), bottom, "probe-line");
   }
 
+  const clip = svgElement("rect", { x: left, y: top, width: 0, height: bottom - top });
+  const clipPath = svgElement("clipPath", { id: "played-trace" });
+  clipPath.append(clip);
+  drawing.append(clipPath);
+  const played = svgElement("g", { "clip-path": "url(#played-trace)" });
   traces.forEach((trace, index) => {
     if (!trace.length) return;
-    draw("path", {
+    const attributes = {
       d: makePath(trace, x, y, "level"),
       class: `trace ${index ? "plan-line" : "baseline-line"}`,
       "vector-effect": "non-scaling-stroke",
-    });
+    };
+    draw("path", { ...attributes, class: `${attributes.class} future-trace` });
+    played.append(svgElement("path", attributes));
   });
-  line(x(state.minute), top, x(state.minute), bottom, "playhead");
-  traces.forEach((trace, index) => {
-    if (!trace.length) return;
-    const sample = point(trace, state.minute);
-    draw("circle", { cx: x(sample.minute), cy: y(sample.level), r: 4, class: index ? "plan-dot" : "baseline-dot" });
-  });
+  drawing.append(played);
+  const playhead = svgElement("line", { y1: top, y2: bottom, class: "playhead", "vector-effect": "non-scaling-stroke" });
+  drawing.append(playhead);
+  const dots = traces.map((trace, index) => trace.length ? svgElement("circle", {
+    r: 4.5, class: `playhead-dot ${index ? "plan-dot" : "baseline-dot"}`,
+  }) : null);
+  drawing.append(...dots.filter(Boolean));
 
   group.replaceChildren(drawing);
+  state.chart = { x, y, left, traces, clip, playhead, dots };
+  renderMotion();
   byId("band-key").hidden = !bands.some(band => band.some(sample => sample.min < sample.max));
   byId("action-key").hidden = delays.size === 0;
   const limitText = `${limitLabel || "Operating limit"} ${value(limit)}.`;
@@ -262,6 +330,31 @@ function renderChart(baseline, selected) {
   text("chart-caption", `${limitText} ${first}${branch}`);
   text("chart-mode", state.applied ? "RESPONSE REPLAY" : state.staged ? "RESPONSE STAGED" : state.probe ? "EVIDENCE REPLAY" : "PLAN PREVIEW");
   text("plan-key", selected?.label || "Selected response");
+}
+
+function renderMotion() {
+  const { x, y, left, traces, clip, playhead, dots } = state.chart;
+  const { capacity, limit } = state.data.scenario;
+  const cursor = x(state.position);
+  clip.setAttribute("width", cursor - left);
+  playhead.setAttribute("x1", cursor);
+  playhead.setAttribute("x2", cursor);
+  traces.forEach((trace, index) => {
+    const level = readingAt(trace.length ? trace : traces[0], state.position);
+    const track = index ? "plan" : "baseline";
+    const atLimit = level >= limit;
+    const levelLabel = value(level);
+    if (byId(`${track}-level`).textContent !== levelLabel) text(`${track}-level`, levelLabel);
+    byId(`${track}-fill`).style.transform = `scaleX(${Math.max(0, Math.min(1, level / capacity))})`;
+    if (byId(`${track}-reading`).dataset.limit !== String(atLimit)) {
+      byId(`${track}-reading`).dataset.limit = String(atLimit);
+      text(`${track}-status`, atLimit ? "Operating limit reached" : "Below operating limit");
+    }
+    if (dots[index]) {
+      dots[index].setAttribute("cx", cursor);
+      dots[index].setAttribute("cy", y(level));
+    }
+  });
 }
 
 function renderDependencies(active, observed) {
@@ -320,7 +413,7 @@ function renderDecisionButtons() {
   byId("clear-response").hidden = !state.applied;
   byId("clear-response").disabled = state.busy;
   byId("scenario").disabled = state.busy;
-  for (const id of ["play", "timeline", "reset"]) byId(id).disabled = state.busy || !state.data;
+  for (const id of ["run-demo", "play", "timeline", "reset"]) byId(id).disabled = state.busy || !state.data;
 }
 
 function renderPlans(focusId) {
@@ -331,7 +424,7 @@ function renderPlans(focusId) {
     const button = element("button", "plan-option");
     button.type = "button";
     button.dataset.plan = plan.id;
-    button.disabled = state.busy || Boolean(state.applied);
+    button.disabled = state.busy;
     button.setAttribute("aria-pressed", String(plan.id === selected?.id));
     button.append(
       element("span", "plan-rank", String(index + 1).padStart(2, "0")),
@@ -340,12 +433,21 @@ function renderPlans(focusId) {
       element("span", "plan-summary", `${plan.id === recommendedId ? "Recommended · " : ""}${planRisk(plan)}`),
     );
     button.addEventListener("click", () => {
+      if (state.busy) return;
+      if (state.applied === plan.id) {
+        playFromStart();
+        return;
+      }
       state.selected = plan.id;
       state.staged = null;
+      state.applied = null;
+      state.receipt = null;
       resetHandoff();
       text("decision-note", "");
+      text("receipt", "");
       renderPlans(plan.id);
       renderTenants();
+      renderEvidence();
       renderTime();
     });
     return button;
@@ -361,6 +463,8 @@ function renderPlans(focusId) {
   text("plan-intro", recommendedId ? "Compare modeled cost and the earliest limit before you stage a response." : "Every tested response reaches the limit in at least one condition.");
   byId("actions").replaceChildren(...selectedActions().map(action => {
     const row = element("li");
+    row.dataset.start = action.delay;
+    if (action.duration != null) row.dataset.end = action.delay + action.duration;
     const details = element("span", "", action.label);
     if (action.description) details.append(element("small", "action-description", action.description));
     row.append(element("span", "action-time", time(action.delay)), details);
@@ -409,7 +513,7 @@ function renderEvidence() {
     item.append(element("strong", "", percent.format(hypothesis.probability)));
     return item;
   }));
-  const locked = state.busy || Boolean(state.staged || state.applied);
+  const locked = state.busy;
   const studies = (scenario.probes || []).map(probe => renderProbe(scenario, probe, locked));
   if (studies.length && state.data.beforeProbe) {
     const before = state.data.beforeProbe;
@@ -423,14 +527,15 @@ function renderEvidence() {
   }
   if (state.probe) {
     const controls = element("div", "probe-controls");
-    const forecast = element("a", "button secondary", "View replay forecast ↑");
-    forecast.href = "#forecast-title";
+    const forecast = element("button", "button secondary", "Replay this forecast ↑");
+    forecast.type = "button";
+    forecast.disabled = locked;
+    forecast.addEventListener("click", playFromStart);
     const clear = element("button", "button secondary", "Return to shared readings");
     clear.type = "button";
     clear.disabled = locked;
     clear.addEventListener("click", async () => {
-      await loadScenario(scenario.id);
-      byId("evidence-title").focus();
+      if (await loadScenario(scenario.id)) byId("evidence-title").focus();
     });
     controls.append(forecast, clear);
     studies.push(controls);
@@ -479,12 +584,11 @@ function renderProbe(scenario, probe, locked) {
         const delta = outcome.cost - before.cost;
         button.append(element("span", "probe-branch-delta", `${cost(Math.abs(delta))} ${delta < 0 ? "less" : "more"} than acting now`));
       }
-      button.append(element("span", "probe-branch-status", current ? "In replay" : "Replay this reading →"));
+      button.append(element("span", "probe-branch-status", current ? "Play this reading again ▶" : "Play this reading ▶"));
     }
     button.addEventListener("click", async () => {
-      if (current || state.busy || state.staged || state.applied) return;
-      await loadScenario(scenario.id, probe.id, outcome.id);
-      byId("evidence-title").focus();
+      if (state.busy || !possible) return;
+      if (current || await loadScenario(scenario.id, probe.id, outcome.id)) playFromStart();
     });
     branches.append(button);
   }
@@ -512,6 +616,19 @@ function renderScenario() {
   renderTime();
 }
 
+function clearLoadError() {
+  byId("load-error").hidden = true;
+  byId("retry-load").hidden = true;
+}
+
+function showLoadError(message, retry) {
+  retryLoad = retry;
+  byId("load-error").hidden = false;
+  byId("retry-load").hidden = false;
+  text("load-error", message);
+  byId("load-error").scrollIntoView({ block: "center" });
+}
+
 async function loadScenario(id, probe = null, outcome = null) {
   if (state.busy) return;
   stopPlayback();
@@ -521,14 +638,16 @@ async function loadScenario(id, probe = null, outcome = null) {
     renderPlans();
     renderEvidence();
   }
-  byId("load-error").hidden = true;
+  clearLoadError();
   try {
     const parameters = new URLSearchParams();
     if (probe) parameters.set("probe", probe);
     if (outcome) parameters.set("outcome", outcome);
-    const query = parameters.size ? `?${parameters}` : "";
+    const search = parameters.toString();
+    const query = search ? `?${search}` : "";
     state.data = await json(`${scenarioPath(id)}${query}`);
     state.minute = 0;
+    state.position = 0;
     state.selected = state.data.recommendedId || state.data.options[0]?.id;
     state.staged = null;
     state.applied = null;
@@ -540,17 +659,16 @@ async function loadScenario(id, probe = null, outcome = null) {
     byId("scenario").value = id;
     resetHandoff();
     renderScenario();
+    return true;
   } catch (error) {
     state.busy = false;
-    byId("load-error").hidden = false;
-    text("load-error", `Could not load the incident. ${error.message}`);
+    showLoadError(`Could not load the incident. ${error.message}`, () => loadScenario(id, probe, outcome));
     if (state.data) {
       byId("scenario").value = state.data.scenario.id;
       renderPlans();
       renderEvidence();
-    } else {
-      byId("scenario").disabled = false;
-    }
+    } else renderDecisionButtons();
+    return false;
   }
 }
 
@@ -584,16 +702,15 @@ async function applyResponse() {
     state.staged = null;
     resetHandoff();
     text("receipt", `Dispatch receipt ${state.receipt.id}`);
-    text("decision-note", "Response applied to the simulation. The replay starts at T+00.");
-    goTo(0);
+    text("decision-note", "Response applied. The replay is running from T+00.");
   } catch (error) {
     text("decision-note", `Response is still staged. ${error.message} You can retry.`);
   } finally {
     state.busy = false;
     renderPlans();
     renderEvidence();
-    renderTime();
-    byId(state.applied ? "play" : "apply").focus();
+    if (state.applied) playFromStart();
+    else byId("apply").focus();
   }
 }
 
@@ -663,6 +780,7 @@ async function copyHandoff() {
 }
 
 async function initialize() {
+  clearLoadError();
   try {
     const { scenarios } = await json("./api/scenarios");
     if (!scenarios.length) throw new Error("No scenarios are available.");
@@ -670,11 +788,12 @@ async function initialize() {
     byId("scenario").replaceChildren(...choices);
     await loadScenario(scenarios[0].id);
   } catch (error) {
-    byId("load-error").hidden = false;
-    text("load-error", `Could not start Avon Relay. ${error.message}`);
+    showLoadError(`Could not start Avon Relay. ${error.message}`, initialize);
   }
 }
 
+byId("run-demo").addEventListener("click", playFromStart);
+byId("retry-load").addEventListener("click", () => retryLoad?.());
 byId("scenario").addEventListener("change", event => loadScenario(event.target.value));
 byId("play").addEventListener("click", togglePlayback);
 byId("timeline").addEventListener("input", event => {

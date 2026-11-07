@@ -27,7 +27,7 @@ Open **Avon produced water**. Under **What would change your mind?**, try both r
 
 Try the portable flow meter next. It takes four minutes and leaves both faults in play. The lowest-cost response that stays within the limit is the $1,748 bypass.
 
-Pick a response, then **Stage response → Apply in simulation → Play**. The shift handoff records the reading and the chosen response. Dispatch receipts go in `.relay/dispatches/`.
+Click a reading to start its replay. Pick a response, then **Stage response → Apply in simulation** to run it and save a dispatch receipt. The shift handoff records the reading and the chosen response. Dispatch receipts go in `.relay/dispatches/`.
 
 **Avon data center** follows a cooling fault through a shift change. **Avon Exchange property** estimates which tenants are affected by an equipment failure and for how long. [Demo steps](docs/demo.md) · [Method and sources](docs/method.md)
 

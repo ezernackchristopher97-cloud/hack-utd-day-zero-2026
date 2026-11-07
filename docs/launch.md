@@ -24,7 +24,7 @@ npm start
 AVON
 ```
 
-Open [http://localhost:2026](http://localhost:2026). Select **Avon produced water**, open the local drive trip check, and replay both readings. Choose a response, stage it, apply it, then press Play. A saved dispatch stays in `.relay/dispatches/` inside the extracted project.
+Open [http://localhost:2026](http://localhost:2026). Click **Run the demo** to watch both forecasts. Select either drive contact reading to start that replay. Choose a response, stage it, and apply it to replay the response and save a dispatch in `.relay/dispatches/`.
 
 ## 3. Use another device or stop
 

@@ -82,6 +82,7 @@ h2 { font-size: clamp(23px, 2.1vw, 30px); font-weight: 670; letter-spacing: -.04
 .metric:first-child .eyebrow { color: var(--gold); }
 .metric strong { font-size: clamp(21px, 2.6vw, 35px); line-height: 1.07; letter-spacing: -.052em; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .metric > span:last-child { color: var(--muted); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.is-playing #current-value { color: var(--teal); }
 .amber { color: var(--gold); }
 
 .dashboard { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(330px, 1fr); gap: 17px; align-items: start; }
@@ -105,16 +106,22 @@ h2 { font-size: clamp(23px, 2.1vw, 30px); font-weight: 670; letter-spacing: -.04
 .key.limit { color: var(--red); border-top-style: dotted; }
 .key.event { color: var(--teal); border-top-style: dotted; }
 .chart-wrap { background: radial-gradient(ellipse at 55% 45%, #0f2118 0, var(--subpanel) 76%); border: 1px solid #2e493b; border-radius: 9px; padding: 7px 7px 0; }
+.is-playing .chart-wrap { border-color: #5a9b80; }
 #chart { width: 100%; height: clamp(214px, 24vw, 323px); display: block; overflow: visible; }
 #chart .axis-label { font-family: var(--mono); font-size: 13px; fill: var(--muted); }
 #chart .grid { stroke: #2a4437; stroke-width: 1; }
-#chart .trace { fill: none; stroke-width: 2.35; }
+#chart .trace { fill: none; stroke-width: 2.6; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+#chart .future-trace { opacity: .34; }
 #chart .baseline-line { stroke: var(--gold); stroke-dasharray: 6 4; }
 #chart .plan-line { stroke: var(--green); }
 #chart .limit-line { stroke: var(--red); stroke-dasharray: 2 4; }
 #chart .baseline-band { fill: #f3c77929; }
 #chart .plan-band { fill: #8cf3bd25; }
-#chart .playhead { stroke: #dae8de; stroke-width: 1; }
+#chart .playhead { stroke: #e1f6eb; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+#chart .playhead-dot { fill: #e1f6eb; }
+.is-playing #chart .playhead { stroke: var(--teal); stroke-width: 2; }
+.is-playing #chart .playhead-dot { fill: var(--teal); }
+#chart :is(.baseline-dot, .plan-dot) { stroke: #09140f; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 #chart .baseline-dot { fill: var(--gold); }
 #chart .plan-dot { fill: var(--green); }
 #chart .event-line { stroke: #69bb99; stroke-width: 1; stroke-dasharray: 2 4; }
@@ -124,9 +131,22 @@ h2 { font-size: clamp(23px, 2.1vw, 30px); font-weight: 670; letter-spacing: -.04
 #chart .tick-emphasis { fill: var(--gold); font-weight: 700; }
 .chart-caption { color: var(--muted); font-size: 12px; margin: 8px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
 .chart-caption:empty { display: none; }
+.replay-readings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.replay-reading { --reading-color: var(--green); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 5px 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--subpanel); }
+.replay-reading[data-track="baseline"] { --reading-color: var(--gold); }
+.replay-reading[data-limit="true"] { --reading-color: var(--red); border-color: #8d584b; }
+.replay-reading > :first-child { color: var(--soft); font-size: 12px; }
+.replay-reading strong { color: var(--reading-color); font: 700 14px var(--mono); }
+.replay-meter { grid-column: 1 / -1; height: 6px; overflow: hidden; border-radius: 3px; background: #284035; }
+.replay-meter > span { display: block; height: 100%; transform: scaleX(0); transform-origin: left; background: var(--reading-color); }
+.replay-state { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
+.replay-reading[data-limit="true"] .replay-state { color: var(--red); }
+.replay-message { margin: 6px 0 0; color: var(--soft); font-size: 12px; line-height: 1.45; }
+.replay-message:empty { display: none; }
 .transport { display: flex; align-items: center; gap: 11px; margin-top: 12px; }
 .transport input { min-width: 35px; width: 100%; min-height: 36px; accent-color: var(--green); cursor: pointer; }
-#elapsed { font: 11px var(--mono); white-space: nowrap; color: var(--soft); }
+#elapsed { min-width: 11ch; text-align: right; font: 700 12px var(--mono); white-space: nowrap; color: var(--soft); }
+.is-playing #elapsed { color: var(--teal); }
 .button { min-height: 44px; border: 1px solid transparent; border-radius: 7px; font-size: 13px; font-weight: 700; padding: 8px 12px; }
 .button.primary { display: inline-flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--green); color: #0a2115; }
 .button.primary:not(:disabled):hover { background: #b1fcd3; }
@@ -135,6 +155,7 @@ h2 { font-size: clamp(23px, 2.1vw, 30px); font-weight: 670; letter-spacing: -.04
 .button.text-button { background: transparent; color: var(--muted); }
 .button.text-button:not(:disabled):hover { color: var(--text); }
 .button.play { min-width: 86px; white-space: nowrap; }
+.is-playing .button.play { border-color: #79cc9f; background: #214333; }
 #play-icon { color: var(--green); margin-right: 2px; }
 .mobile-jump { display: none; }
 
@@ -201,6 +222,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .action-list:empty { display: none; }
 .action-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 8px; color: var(--soft); font-size: 12px; line-height: 1.45; }
 .action-time { color: var(--teal); font: 10px var(--mono); }
+.action-list [data-phase="active"] { color: var(--green); box-shadow: -2px 0 var(--green); padding-left: 8px; }
+.action-list [data-phase="done"] .action-time { color: var(--muted); }
 .action-description { display: block; color: var(--muted); font-size: 11px; }
 .decision-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .decision-buttons .primary { flex: 1; }
@@ -251,7 +274,9 @@ tbody tr:last-child td { border-bottom: 0; }
   .evidence-grid, .probe-branch-list { grid-template-columns: minmax(0, 1fr); }
   .dependency-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #chart .axis-label { font-size: 19px; }
+  .replay-reading { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: no-preference) {
   .button, .plan-option, .probe-branch { transition: background-color 120ms ease, border-color 120ms ease; }
+  .chart-wrap, #elapsed, #current-value { transition: border-color 160ms ease, color 160ms ease; }
 }

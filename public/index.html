@@ -32,13 +32,14 @@
   </header>
   <main class="shell" id="main">
     <p class="notice" id="load-error" role="alert" hidden></p>
+    <button type="button" class="button secondary" id="retry-load" hidden>Retry loading</button>
     <section class="briefing" aria-labelledby="briefing-title">
       <div class="briefing-copy">
         <p class="eyebrow"><span class="indicator"></span> AVON OPERATIONS / NIGHT SHIFT</p>
         <h1 id="briefing-title">One signal.<br><span>Two futures.</span></h1>
         <p>The same warning can hide different faults. Test a second signal, see what breaks next, and choose a response before the window closes.</p>
         <div class="briefing-actions">
-          <a class="button primary" href="#incident">Open incident <span aria-hidden="true">↓</span></a>
+          <button type="button" class="button primary" id="run-demo" disabled>Run the demo <span aria-hidden="true">▶</span></button>
           <a class="button secondary" href="#evidence-panel">Explore the evidence <span aria-hidden="true">↗</span></a>
         </div>
       </div>
@@ -111,13 +112,25 @@
 
     <div class="dashboard">
       <div class="main-column">
-        <section class="panel forecast" aria-labelledby="forecast-title">
+        <section class="panel forecast" id="forecast" aria-labelledby="forecast-title">
           <div class="panel-head">
             <div>
               <p class="eyebrow">01 / FORECAST</p>
               <h2 id="forecast-title">Watch the futures split</h2>
             </div>
             <span class="tag" id="chart-mode">PLAN PREVIEW</span>
+          </div>
+          <div class="replay-readings">
+            <div class="replay-reading" id="baseline-reading" data-track="baseline">
+              <span>No action</span><strong id="baseline-level">—</strong>
+              <div class="replay-meter" aria-hidden="true"><span id="baseline-fill"></span></div>
+              <small class="replay-state" id="baseline-status"></small>
+            </div>
+            <div class="replay-reading" id="plan-reading" data-track="plan">
+              <span>With response</span><strong id="plan-level">—</strong>
+              <div class="replay-meter" aria-hidden="true"><span id="plan-fill"></span></div>
+              <small class="replay-state" id="plan-status"></small>
+            </div>
           </div>
           <div class="chart-legend" aria-label="Chart legend">
             <span><i class="key baseline"></i>No action</span>
@@ -143,6 +156,8 @@
             <output for="timeline" id="elapsed">T+00 min</output>
             <button type="button" class="button text-button" id="reset" disabled>Reset</button>
           </div>
+          <p id="replay-message" class="replay-message" role="status">Press Play to run the forecast. The chart shows both outcomes.</p>
+          <a class="forecast-evidence" href="#evidence-panel">Try another field reading ↓</a>
           <a class="mobile-jump" href="#plans-title">Jump to response options ↓</a>
         </section>
 

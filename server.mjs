@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { networkInterfaces } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -55,23 +56,61 @@ function tenantExposure(scenario, analysis) {
   };
 }
 
-function scenarioAnalysis(scenario, probeId) {
-  const result = readEvidence(scenario, probeId);
-  if (!result) return null;
-  const decisionScenario = {
+function forecast(scenario, caseIds, delay = 0, cost = 0) {
+  const timedScenario = delay ? {
     ...scenario,
-    actions: scenario.actions.map(action => ({ ...action, delay: action.delay + result.delay })),
-    hypotheses: (scenario.hypotheses ?? []).map(({ id, label, prior }) => ({ id, label, prior })),
-    probes: result.rankedProbes
-  };
-  const analysis = analyze(decisionScenario, result.caseIds);
-  if (result.cost) {
+    actions: scenario.actions.map(action => ({ ...action, delay: action.delay + delay }))
+  } : scenario;
+  const analysis = analyze(timedScenario, caseIds);
+  if (cost) {
     for (const option of analysis.options) {
-      option.cost += result.cost;
-      option.nominal.cost += result.cost;
+      option.cost += cost;
+      option.nominal.cost += cost;
     }
   }
-  return { ...analysis, scenario: decisionScenario, evidence: result.evidence, tenantExposure: tenantExposure(scenario, analysis) };
+  return analysis;
+}
+
+function forecastSummary(analysis) {
+  const recommended = analysis?.options.find(option => option.id === analysis.recommendedId);
+  return {
+    activeCaseCount: analysis?.baseline.caseCount ?? 0,
+    earliest: analysis?.baseline.earliest ?? null,
+    latest: analysis?.baseline.latest ?? null,
+    recommendedId: recommended?.id ?? null,
+    recommendedLabel: recommended?.label ?? null,
+    cost: recommended?.cost ?? null,
+    safe: recommended != null
+  };
+}
+
+function scenarioAnalysis(scenario, probeId, outcomeId) {
+  const result = readEvidence(scenario, probeId, outcomeId);
+  if (result.error) return result;
+
+  const before = forecast(scenario);
+  const observation = result.evidence.observation;
+  const analysis = observation ? forecast(scenario, result.caseIds, result.delay, result.cost) : before;
+  const probes = result.rankedProbes.map(({ outcomes, ...probe }) => ({
+    ...probe,
+    outcomes: outcomes.map(({ id, label, probability, bits, caseIds }) => {
+      const isSelected = probe.id === observation?.probeId && id === observation.id;
+      const branch = isSelected ? analysis : probability > 0 ? forecast(scenario, caseIds, probe.delay, probe.cost) : null;
+      return { id, label, probability, bits, ...forecastSummary(branch) };
+    })
+  }));
+  const decisionScenario = {
+    ...analysis.scenario,
+    hypotheses: (scenario.hypotheses ?? []).map(({ id, label, prior }) => ({ id, label, prior })),
+    probes
+  };
+  return {
+    ...analysis,
+    scenario: decisionScenario,
+    beforeProbe: forecastSummary(before),
+    evidence: result.evidence,
+    tenantExposure: tenantExposure(scenario, analysis)
+  };
 }
 
 async function readDispatchRequest(request) {
@@ -84,7 +123,8 @@ async function readDispatchRequest(request) {
   try {
     const body = JSON.parse(raw);
     return body && typeof body.plan === 'string' && Number.isInteger(body.minute) &&
-      (body.probe == null || typeof body.probe === 'string') ? body : null;
+      (body.probe == null || typeof body.probe === 'string') &&
+      (body.outcome == null || typeof body.outcome === 'string') ? body : null;
   } catch {
     return null;
   }
@@ -121,13 +161,19 @@ export function createAppServer(available = scenarios, receiptDir = resolve('.re
         if (!body || body.minute < 0 || body.minute > scenario.horizon) {
           return json(response, 400, { error: 'Choose a plan and minute inside this replay.' });
         }
-        const analysis = scenarioAnalysis(scenario, body.probe);
-        const option = analysis?.options.find(item => item.id === body.plan && item.actionIds.length);
+        const analysis = scenarioAnalysis(scenario, body.probe, body.outcome);
+        if (analysis.error) return json(response, analysis.status, { error: analysis.error });
+        const option = analysis.options.find(item => item.id === body.plan && item.actionIds.length);
         if (!option) return json(response, 404, { error: 'Choose an available response with at least one action.' });
 
         const id = `AR-${randomUUID()}`;
         const text = createBrief(analysis.scenario, analysis, option, body.minute);
-        const receipt = { id, createdAt: new Date().toISOString(), scenario: scenario.id, plan: option.id, minute: body.minute, text };
+        const receipt = {
+          id, createdAt: new Date().toISOString(), scenario: scenario.id, plan: option.id, minute: body.minute,
+          probe: analysis.evidence.observation?.probeId ?? null,
+          outcome: analysis.evidence.observation?.id ?? null,
+          text
+        };
         await mkdir(receiptDir, { recursive: true, mode: 0o700 });
         await writeFile(join(receiptDir, `${id}.json`), `${JSON.stringify(receipt, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
         return json(response, 201, { id, text });
@@ -143,8 +189,8 @@ export function createAppServer(available = scenarios, receiptDir = resolve('.re
         return json(response, 200, { scenarios: available.map(({ id, name, description, unit }) => ({ id, name, description, unit })) });
       }
       if (!scenario) return json(response, 404, { error: 'Scenario or route not found.' });
-      const analysis = scenarioAnalysis(scenario, url.searchParams.get('probe'));
-      if (!analysis) return json(response, 404, { error: 'Probe not found for this scenario.' });
+      const analysis = scenarioAnalysis(scenario, url.searchParams.get('probe'), url.searchParams.get('outcome'));
+      if (analysis.error) return json(response, analysis.status, { error: analysis.error });
       if (!route[2]) return json(response, 200, analysis);
 
       const option = analysis.options.find(item => item.id === (url.searchParams.get('plan') ?? analysis.recommendedId));
@@ -172,6 +218,17 @@ async function loadSponsorScenarios(folder) {
   return imported;
 }
 
+function lanAddresses() {
+  try {
+    const addresses = Object.values(networkInterfaces()).flat().filter(address =>
+      address && !address.internal && (address.family === 'IPv4' || address.family === 4)
+    ).map(address => address.address);
+    return [...new Set(addresses)];
+  } catch {
+    return [];
+  }
+}
+
 async function start() {
   const { values } = parseArgs({ options: {
     host: { type: 'string', default: '127.0.0.1' },
@@ -191,7 +248,11 @@ async function start() {
   server.listen(port, values.host, () => {
     const host = values.host === '0.0.0.0' ? '127.0.0.1' : values.host.includes(':') ? `[${values.host}]` : values.host;
     console.log(`Avon Relay · http://${host}:${port}`);
-    if (values.host === '0.0.0.0') console.log('Wi-Fi access enabled. Other devices can use this computer’s LAN address.');
+    if (values.host === '0.0.0.0') {
+      const addresses = lanAddresses();
+      for (const address of addresses) console.log(`Wi-Fi / LAN · http://${address}:${port}`);
+      if (!addresses.length) console.log(`Wi-Fi / LAN · use this computer’s IPv4 address and port ${port}.`);
+    }
     console.log('Press Ctrl+C to stop.');
   });
 }

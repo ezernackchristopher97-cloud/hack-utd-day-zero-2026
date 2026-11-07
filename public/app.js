@@ -7,6 +7,7 @@ const state = {
   staged: null,
   applied: null,
   probe: null,
+  outcome: null,
   receipt: null,
   expanded: false,
   busy: false,
@@ -14,6 +15,8 @@ const state = {
 };
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+const bits = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+const percent = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 });
 const svgNS = "http://www.w3.org/2000/svg";
 const featuredOptions = 3;
 
@@ -127,6 +130,11 @@ function deadlineDetail(forecast) {
   return caseCount && Number.isFinite(limitCases) ? `${window} · ${limitCases}/${caseCount} conditions cross` : `${window} · tested conditions`;
 }
 
+function crossingWindow({ earliest, latest }) {
+  if (earliest == null) return "Within limit through replay";
+  return earliest === latest || latest == null ? time(earliest) : `${time(earliest)} to ${time(latest)}`;
+}
+
 function renderTime() {
   const { scenario, baseline, evidence } = state.data;
   const active = activeForecast();
@@ -141,7 +149,7 @@ function renderTime() {
   text("current-value", value(observed.level));
   text("current-detail", `${scenario.levelLabel || "Simulated reading"} · ${state.applied ? "applied response" : "no action"}`);
   text("condition-count", String(active.caseCount ?? scenario.cases.length));
-  text("condition-detail", evidence?.hypotheses.length ? `${decimal.format(evidence.bits)} bits of uncertainty` : "Tested conditions");
+  text("condition-detail", evidence?.hypotheses.length ? `${bits.format(evidence.bits)} bits of uncertainty` : "Tested conditions");
   text("response-state", stateName());
   text("response-detail", state.staged ? option(state.staged).label : state.applied ? option(state.applied).label : "No response applied");
   renderChart(baseline, option(state.selected));
@@ -196,7 +204,14 @@ function renderChart(baseline, selected) {
     line(x(tick), top, x(tick), bottom, "grid");
     label(x(tick), bottom + 24, tick);
   }
-  label((left + right) / 2, bottom + 42, "Elapsed minutes");
+  label((left + right) / 2, bottom + 35, "Elapsed minutes");
+
+  if (baseline.earliest != null && baseline.latest > baseline.earliest) {
+    draw("rect", {
+      x: x(baseline.earliest), y: top, width: x(baseline.latest) - x(baseline.earliest),
+      height: bottom - top, class: "deadline-window",
+    });
+  }
 
   bands.forEach((band, index) => {
     if (band.length < 2) return;
@@ -216,6 +231,10 @@ function renderChart(baseline, selected) {
   ));
   for (const delay of delays) {
     if (delay >= 0 && delay <= horizon) line(x(delay), top, x(delay), bottom, "event-line");
+  }
+  const reading = state.data.evidence?.observation;
+  if (reading?.delay > 0 && reading.delay <= horizon) {
+    line(x(reading.delay), top, x(reading.delay), bottom, "probe-line");
   }
 
   traces.forEach((trace, index) => {
@@ -237,10 +256,11 @@ function renderChart(baseline, selected) {
   byId("band-key").hidden = !bands.some(band => band.some(sample => sample.min < sample.max));
   byId("action-key").hidden = delays.size === 0;
   const limitText = `${limitLabel || "Operating limit"} ${value(limit)}.`;
-  const first = baseline.earliest == null ? "No action stays within the limit under the tested conditions." : `Without action, the earliest limit crossing is ${time(baseline.earliest)}.`;
-  text("chart-description", `${first} ${limitText} ${selected ? planRisk(selected) : ""}`);
-  text("chart-caption", `${limitText} ${first}`);
-  text("chart-mode", state.applied ? "RESPONSE REPLAY" : state.staged ? "RESPONSE STAGED" : "PLAN PREVIEW");
+  const first = baseline.earliest == null ? "The no-response forecast stays within the limit." : `Without response, the limit is reached ${crossingWindow(baseline)} across modeled cases.`;
+  const branch = reading ? ` Reading at ${time(reading.delay)}.` : "";
+  text("chart-description", `${first} ${limitText}${branch} ${selected ? planRisk(selected) : ""}`);
+  text("chart-caption", `${limitText} ${first}${branch}`);
+  text("chart-mode", state.applied ? "RESPONSE REPLAY" : state.staged ? "RESPONSE STAGED" : state.probe ? "EVIDENCE REPLAY" : "PLAN PREVIEW");
   text("plan-key", selected?.label || "Selected response");
 }
 
@@ -333,6 +353,7 @@ function renderPlans(focusId) {
   byId("plans").replaceChildren(...rows);
   if (focusId) rows.find(button => button.dataset.plan === focusId)?.focus();
   const toggle = byId("plan-toggle");
+  toggle.disabled = state.busy;
   toggle.hidden = options.length <= featuredOptions || Boolean(state.applied);
   toggle.setAttribute("aria-expanded", String(state.expanded));
   toggle.textContent = state.expanded ? "Show top options" : `Show all ${options.length} options`;
@@ -370,9 +391,14 @@ function renderTenants() {
 
 function renderEvidence() {
   const { scenario, evidence } = state.data;
-  byId("evidence-panel").hidden = !(evidence?.hypotheses?.length || scenario.observations?.length);
+  const hasHypotheses = Boolean(evidence?.hypotheses?.length);
+  byId("evidence-panel").hidden = !(hasHypotheses || scenario.observations?.length);
   if (byId("evidence-panel").hidden) return;
-  text("evidence-bits", evidence?.hypotheses.length ? `${decimal.format(evidence.bits)} BITS UNCERTAINTY` : "OBSERVATIONS");
+  for (const id of ["evidence-intro", "evidence-hypotheses"]) {
+    const node = byId(id);
+    if (node) node.hidden = !hasHypotheses;
+  }
+  text("evidence-bits", hasHypotheses ? `${bits.format(evidence.bits)} BITS UNCERTAINTY` : "OBSERVATIONS");
   byId("observations").replaceChildren(...(scenario.observations || []).map(observation => {
     const item = element("li", "", `${observation.label} · `);
     item.append(element("strong", "", observation.value));
@@ -380,34 +406,90 @@ function renderEvidence() {
   }));
   byId("hypotheses").replaceChildren(...(evidence?.hypotheses || []).map(hypothesis => {
     const item = element("li", "", `${hypothesis.label} · `);
-    item.append(element("strong", "", `${decimal.format(hypothesis.probability * 100)}%`));
+    item.append(element("strong", "", percent.format(hypothesis.probability)));
     return item;
   }));
-  const buttons = (scenario.probes || []).map(probe => {
-    const button = element("button", "button secondary probe", probe.label);
-    button.type = "button";
-    button.disabled = state.busy || Boolean(state.probe || state.applied || state.staged);
-    button.append(element("small", "", `${probe.delay} min · ${cost(probe.cost)} · ${decimal.format(probe.expectedGain)} bits expected`));
-    if (probe.description) button.title = probe.description;
-    button.addEventListener("click", async () => {
-      await loadScenario(scenario.id, probe.id);
-      byId("evidence-title").focus();
-    });
-    return button;
-  });
+  const locked = state.busy || Boolean(state.staged || state.applied);
+  const studies = (scenario.probes || []).map(probe => renderProbe(scenario, probe, locked));
+  if (studies.length && state.data.beforeProbe) {
+    const before = state.data.beforeProbe;
+    const summary = element("p", "probe-reference");
+    summary.append(
+      element("strong", "", "Without another reading"),
+      element("span", "", branchRecommendation(before)),
+      element("span", "", `No response · ${crossingWindow(before)}`),
+    );
+    studies.unshift(summary);
+  }
   if (state.probe) {
-    const clear = element("button", "button secondary", "Reset evidence");
+    const controls = element("div", "probe-controls");
+    const forecast = element("a", "button secondary", "View replay forecast ↑");
+    forecast.href = "#forecast-title";
+    const clear = element("button", "button secondary", "Return to shared readings");
     clear.type = "button";
-    clear.disabled = state.busy;
+    clear.disabled = locked;
     clear.addEventListener("click", async () => {
       await loadScenario(scenario.id);
       byId("evidence-title").focus();
     });
-    buttons.push(clear);
+    controls.append(forecast, clear);
+    studies.push(controls);
   }
-  byId("probes").replaceChildren(...buttons);
+  byId("probes").replaceChildren(...studies);
   const observation = evidence?.observation;
-  text("probe-result", observation ? `Reading: ${typeof observation === "string" ? observation : observation.label || observation.outcomeLabel || observation.outcome || observation.id}. Response times now include the field check.` : "");
+  text("probe-result", observation
+    ? `Replaying ${observation.label}. Uncertainty ${bits.format(evidence.priorBits)} → ${bits.format(evidence.bits)} bits. Responses start after the ${observation.delay}-minute check.`
+    : "");
+}
+
+function branchRecommendation(branch) {
+  if (!branch.safe) return "No tested response stays within the limit";
+  return `${branch.recommendedLabel} · ${cost(branch.cost)}`;
+}
+
+function renderProbe(scenario, probe, locked) {
+  const section = element("section", "probe-study");
+  section.setAttribute("aria-label", probe.label);
+  section.append(element("h3", "probe-study-heading", probe.label));
+  section.append(element("p", "probe-study-meta", `${probe.delay} min · ${cost(probe.cost)} check · ${bits.format(probe.expectedGain)} bits expected to resolve`));
+  if (probe.description) section.append(element("p", "probe-study-detail", probe.description));
+  const branches = element("div", "probe-branch-list");
+  branches.setAttribute("role", "group");
+  branches.setAttribute("aria-label", "Possible readings to replay");
+  for (const outcome of probe.outcomes) {
+    const current = state.probe === probe.id && state.outcome === outcome.id;
+    const possible = outcome.probability > 0;
+    const button = element("button", "probe-branch");
+    button.type = "button";
+    button.disabled = locked || !possible;
+    button.dataset.probe = probe.id;
+    button.dataset.outcome = outcome.id;
+    button.setAttribute("aria-pressed", String(current));
+    button.append(
+      element("span", "probe-branch-label", outcome.label),
+      element("span", "probe-branch-chance", `${percent.format(outcome.probability)} modeled chance`),
+      element("span", "probe-branch-meta", possible ? `No response · ${crossingWindow(outcome)}` : "Outside the exercise model"),
+    );
+    if (possible) {
+      button.append(
+        element("span", "probe-branch-plan", branchRecommendation(outcome)),
+      );
+      const before = state.data.beforeProbe;
+      if (outcome.safe && before?.safe && outcome.cost !== before.cost) {
+        const delta = outcome.cost - before.cost;
+        button.append(element("span", "probe-branch-delta", `${cost(Math.abs(delta))} ${delta < 0 ? "less" : "more"} than acting now`));
+      }
+      button.append(element("span", "probe-branch-status", current ? "In replay" : "Replay this reading →"));
+    }
+    button.addEventListener("click", async () => {
+      if (current || state.busy || state.staged || state.applied) return;
+      await loadScenario(scenario.id, probe.id, outcome.id);
+      byId("evidence-title").focus();
+    });
+    branches.append(button);
+  }
+  section.append(branches);
+  return section;
 }
 
 function renderScenario() {
@@ -430,7 +512,7 @@ function renderScenario() {
   renderTime();
 }
 
-async function loadScenario(id, probe = null) {
+async function loadScenario(id, probe = null, outcome = null) {
   if (state.busy) return;
   stopPlayback();
   state.busy = true;
@@ -441,13 +523,17 @@ async function loadScenario(id, probe = null) {
   }
   byId("load-error").hidden = true;
   try {
-    const query = probe ? `?${new URLSearchParams({ probe })}` : "";
+    const parameters = new URLSearchParams();
+    if (probe) parameters.set("probe", probe);
+    if (outcome) parameters.set("outcome", outcome);
+    const query = parameters.size ? `?${parameters}` : "";
     state.data = await json(`${scenarioPath(id)}${query}`);
     state.minute = 0;
     state.selected = state.data.recommendedId || state.data.options[0]?.id;
     state.staged = null;
     state.applied = null;
     state.probe = probe;
+    state.outcome = state.data.evidence?.observation?.id ?? null;
     state.receipt = null;
     state.expanded = false;
     state.busy = false;
@@ -469,6 +555,7 @@ async function loadScenario(id, probe = null) {
 }
 
 function stageResponse() {
+  if (state.busy || !option(state.selected)?.actionIds.length) return;
   stopPlayback();
   state.staged = state.selected;
   resetHandoff();
@@ -491,7 +578,7 @@ async function applyResponse() {
     state.receipt = await json(`${scenarioPath()}/dispatch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan, minute: state.minute, probe: state.probe }),
+      body: JSON.stringify({ plan, minute: state.minute, probe: state.probe, outcome: state.outcome }),
     });
     state.applied = plan;
     state.staged = null;
@@ -540,6 +627,7 @@ async function generateHandoff() {
   const applied = state.applied;
   const query = new URLSearchParams({ plan: applied || state.selected || "none", minute });
   if (state.probe) query.set("probe", state.probe);
+  if (state.outcome) query.set("outcome", state.outcome);
   byId("handoff-generate").disabled = true;
   try {
     const note = await json(`${scenarioPath()}/handoff?${query}`);

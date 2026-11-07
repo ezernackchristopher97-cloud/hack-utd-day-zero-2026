@@ -2,7 +2,9 @@
 
 ## Observation
 
-The same set of visible readings can fit more than one fault. Relay reports Shannon entropy over the exercise's named hypotheses. It ranks independent probes by expected reduction in uncertainty and shows each probe's time and cost. The reading updates the model weights by Bayes' rule. The forecast retains each case supported by a possible hypothesis. These weights are exercise assumptions.
+The same set of visible readings can fit more than one fault. Relay reports Shannon entropy over the exercise's named hypotheses. It ranks independent probes by expected reduction in uncertainty and shows each probe's time and cost. Before a reading arrives, the operator can compare its possible outcomes. Relay updates the model weights by Bayes' rule for each outcome and retains each forecast case supported by a possible hypothesis. These weights are exercise assumptions.
+
+The field check uses part of the response window. Every conditional plan is simulated with its actions delayed by the time required to get that reading. For Avon, the one minute contact check separates two different response windows. A latched contact requires the faster truck and throttle plan. A clear contact leaves enough time to open the auxiliary tank. The slower meter check still permits both hypotheses and requires the bypass.
 
 The observation and intervention distinction draws on Christopher Ezernack's work on interface-limited reconstruction and systems that appear equivalent under passive observation while responding differently to a perturbation. [Boundary Limited Observer Systems](https://github.com/ezernackchristopher97-cloud/BoundaryObserver) · [Toroidal Manifolds and Recursive Neural Dynamics](https://github.com/ezernackchristopher97-cloud/ENTPTCCONPAPER26/blob/main/paper/main.tex)
 

@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#091412">
+  <title>Avon Relay · Operations Console</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to incident</a>
+  <header class="topbar">
+    <div class="shell bar-inner">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">
+          <path d="M20 2 38 12v16L20 38 2 28V12z" fill="none" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M7 23h7l4-11 5 17 4-8h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <span class="brand-name">AVON RELAY</span>
+          <span class="brand-sub">OPERATIONS CONSOLE</span>
+        </div>
+      </div>
+      <div class="top-meta">
+        <span class="event-name">HACKUTD DAY ZERO 2026</span>
+        <span class="environment"><span class="indicator"></span> SIMULATION</span>
+      </div>
+    </div>
+  </header>
+  <main class="shell" id="main">
+    <p class="notice" id="load-error" role="alert" hidden></p>
+    <section class="incident" aria-labelledby="incident-title">
+      <div class="incident-top">
+        <div class="incident-copy">
+          <p class="eyebrow"><span class="indicator alert"></span> INCIDENT REPLAY <span class="incident-number" id="incident-number"></span></p>
+          <h1 id="incident-title">Avon Relay</h1>
+          <p id="incident-description" class="incident-description">Loading incident data…</p>
+          <p id="scenario-next-step" class="scenario-next-step" hidden></p>
+        </div>
+        <div class="scenario-picker">
+          <label for="scenario">SCENARIO</label>
+          <select id="scenario" disabled></select>
+        </div>
+      </div>
+      <div class="metrics" aria-label="Incident forecast summary">
+        <div class="metric">
+          <span class="eyebrow">EARLIEST LIMIT</span>
+          <strong id="deadline" class="amber">—</strong>
+          <span id="deadline-detail">Across tested conditions</span>
+        </div>
+        <div class="metric">
+          <span class="eyebrow">AT THE PLAYHEAD</span>
+          <strong id="current-value">—</strong>
+          <span id="current-detail">Observed state</span>
+        </div>
+        <div class="metric">
+          <span class="eyebrow">FORECAST CONDITIONS</span>
+          <strong id="condition-count">—</strong>
+          <span id="condition-detail">Tested conditions</span>
+        </div>
+        <div class="metric">
+          <span class="eyebrow">RESPONSE STATE</span>
+          <strong id="response-state">Standby</strong>
+          <span id="response-detail">Review options below</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="dashboard">
+      <div class="main-column">
+        <section class="panel forecast" aria-labelledby="forecast-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">01 / FORECAST</p>
+              <h2 id="forecast-title">Compare the outcomes</h2>
+            </div>
+            <span class="tag" id="chart-mode">PLAN PREVIEW</span>
+          </div>
+          <div class="chart-legend" aria-label="Chart legend">
+            <span><i class="key baseline"></i>No action</span>
+            <span><i class="key planned"></i><span id="plan-key">Selected response</span></span>
+            <span id="band-key"><i class="key band"></i>Tested range</span>
+            <span><i class="key limit"></i>Operating limit</span>
+            <span id="action-key"><i class="key event"></i>Action starts</span>
+          </div>
+          <div class="chart-wrap">
+            <svg id="chart" viewBox="0 0 680 270" role="img" aria-labelledby="chart-title chart-description" preserveAspectRatio="none">
+              <title id="chart-title">Incident forecast</title>
+              <desc id="chart-description">Forecast awaiting scenario data.</desc>
+              <g id="chart-drawing" aria-hidden="true"></g>
+            </svg>
+          </div>
+          <p class="chart-caption" id="chart-caption"></p>
+          <div class="transport">
+            <button type="button" class="button secondary play" id="play" disabled>
+              <span aria-hidden="true" id="play-icon">▶</span> <span id="play-label">Play</span>
+            </button>
+            <label class="sr-only" for="timeline">Simulated elapsed minutes</label>
+            <input id="timeline" type="range" min="0" max="60" value="0" step="1" disabled>
+            <output for="timeline" id="elapsed">T+00 min</output>
+            <button type="button" class="button text-button" id="reset" disabled>Reset</button>
+          </div>
+          <a class="mobile-jump" href="#plans-title">Jump to response options ↓</a>
+        </section>
+
+        <section class="panel" aria-labelledby="network-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">02 / DEPENDENCIES</p>
+              <h2 id="network-title">Follow the cascade</h2>
+            </div>
+            <span class="tag">LIVE REPLAY</span>
+          </div>
+          <p id="network-description" class="muted network-description">Asset states at the current playhead.</p>
+          <ul class="dependency-list" id="dependencies" aria-label="Asset states"></ul>
+          <p id="dependency-paths" class="chart-caption"></p>
+        </section>
+
+        <section class="panel" id="tenant-panel" aria-labelledby="tenant-title" hidden>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">SERVICE IMPACT</p>
+              <h2 id="tenant-title">Who feels the disruption</h2>
+            </div>
+            <span class="tag">TENANT EXPOSURE</span>
+          </div>
+          <div class="table-scroll" tabindex="0" role="region" aria-label="Tenant exposure">
+            <table>
+              <thead><tr><th scope="col">Tenant</th><th scope="col">No action</th><th scope="col">Selected response</th></tr></thead>
+              <tbody id="tenant-rows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" id="evidence-panel" aria-labelledby="evidence-title" hidden>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">FIELD EVIDENCE</p>
+              <h2 id="evidence-title" tabindex="-1">Check a second signal</h2>
+            </div>
+            <span class="tag" id="evidence-bits">—</span>
+          </div>
+          <ul id="observations" class="evidence-list" aria-label="Current observations"></ul>
+          <ul id="hypotheses" class="evidence-list" aria-label="Modeled hypothesis weights"></ul>
+          <div id="probes" class="probes"></div>
+          <p id="probe-result" class="decision-note" role="status"></p>
+        </section>
+      </div>
+
+      <div class="side-column">
+        <section class="panel" aria-labelledby="plans-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">03 / DECISION</p>
+              <h2 id="plans-title" tabindex="-1">Response options</h2>
+            </div>
+            <span class="tag" id="plan-count">—</span>
+          </div>
+          <p class="muted plan-intro" id="plan-intro">Choose a response to compare against no action.</p>
+          <div id="plans" class="plan-list" role="group" aria-label="Response options"></div>
+          <button type="button" class="button text-button" id="plan-toggle" aria-expanded="false" aria-controls="plans" hidden>Show all options</button>
+          <ol id="actions" class="action-list" aria-label="Selected response steps"></ol>
+          <div class="decision-buttons">
+            <button type="button" class="button primary" id="stage" disabled>Stage response <span aria-hidden="true">↗</span></button>
+            <button type="button" class="button primary" id="apply" hidden>Apply in simulation <span aria-hidden="true">→</span></button>
+            <button type="button" class="button secondary" id="unstage" hidden>Cancel</button>
+            <button type="button" class="button secondary" id="clear-response" hidden>Return to preview</button>
+          </div>
+          <p id="decision-note" class="decision-note" role="status"></p>
+        </section>
+
+        <section class="panel handoff" aria-labelledby="handoff-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">04 / HANDOFF</p>
+              <h2 id="handoff-title">Pass it on</h2>
+            </div>
+            <span class="tag">SHIFT RECORD</span>
+          </div>
+          <p class="muted" id="handoff-description">Generate a shift note with the forecast, actions and follow-up.</p>
+          <p class="decision-note" id="receipt"></p>
+          <div class="decision-buttons handoff-buttons">
+            <button type="button" class="button secondary" id="handoff-generate" disabled>Generate handoff</button>
+            <button type="button" class="button secondary" id="handoff-copy" hidden>Copy note</button>
+          </div>
+          <label class="sr-only" for="handoff-text">Shift handoff note</label>
+          <textarea id="handoff-text" rows="7" readonly hidden></textarea>
+          <p class="sr-only" id="copy-status" role="status"></p>
+        </section>
+      </div>
+    </div>
+
+    <details class="method">
+      <summary>How to read this forecast</summary>
+      <p>The band spans the conditions tested by the simulator. The earliest crossing gives the conservative window for a response. Evidence weights and forecast conditions come from each scenario’s exercise model. Open a response to compare its effect and cost, then stage and apply it to replay the incident. Every action here runs in a simulation.</p>
+      <p id="scenario-source"></p>
+    </details>
+  </main>
+  <footer class="shell footer">
+    <span>AVON RELAY</span>
+    <span>DAY ZERO 2026 · TRAINING SIMULATION</span>
+  </footer>
+</body>
+</html>

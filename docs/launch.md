@@ -1,33 +1,38 @@
-# Launch Avon Relay on a Mac
+# Launch Absurdity Gate on a Mac
 
 ## 1. Download the project
 
-Sign in to GitHub and [download the current project ZIP](https://github.com/ezernackchristopher97-cloud/hack-utd-day-zero-2026/archive/refs/heads/main.zip). Keep the ZIP in **Downloads**. Its filename should be `hack-utd-day-zero-2026-main.zip`. If the browser renamed a duplicate, move the older ZIP aside and rename the new one to that filename.
+Save `absurdity-gate-demo.zip` in **Downloads**. If Safari extracts it, keep the `absurdity-gate` folder there. If you already have the project folder open in Terminal, skip to the command in [Run it](../README.md#run-it).
 
-Relay runs on Node 18 or newer. If you need Node, install [Node.js LTS](https://nodejs.org/en/download), then open a new Terminal window. The project has no install step, keys, or cloud services.
+Absurdity Gate runs on Node 18 or newer. If needed, install [Node.js LTS](https://nodejs.org/en/download) and open a new Terminal window.
 
 ## 2. Start the demo
 
-Open **Terminal** and paste the entire block. It opens a clean copy of the download, runs the tests, and starts the console. Keep Terminal open while you use it.
+Open **Terminal** and paste the whole block. It extracts the ZIP into a fresh folder and opens Absurdity Gate at a fresh browser address.
 
 ```bash
-/bin/bash <<'AVON'
+/bin/bash <<'ABSURDITY_GATE'
 set -e
-command -v npm >/dev/null || { echo 'Install Node.js LTS, then open Terminal again.'; exit 1; }
-zip="$HOME/Downloads/hack-utd-day-zero-2026-main.zip"
-[ -f "$zip" ] || { echo "Download the GitHub ZIP to $zip first."; exit 1; }
-demo="$(mktemp -d "$HOME/Downloads/avon-relay-demo.XXXXXX")"
-/usr/bin/unzip -q "$zip" -d "$demo"
-cd "$demo/hack-utd-day-zero-2026-main"
-npm test
-npm start
-AVON
+downloads="$HOME/Downloads"
+demo="$(mktemp -d "$downloads/absurdity-gate.XXXXXX")"
+if [ -f "$downloads/absurdity-gate-demo.zip" ]; then
+  /usr/bin/unzip -q "$downloads/absurdity-gate-demo.zip" -d "$demo"
+elif [ -d "$downloads/absurdity-gate" ]; then
+  cp -R "$downloads/absurdity-gate" "$demo/absurdity-gate"
+else
+  echo 'Save absurdity-gate-demo.zip in Downloads first.'
+  exit 1
+fi
+cd "$demo/absurdity-gate"
+grep -Fq '<title>Absurdity Gate</title>' public/index.html || { echo 'This download is not Absurdity Gate.'; exit 1; }
+npm start -- --port 0 --open
+ABSURDITY_GATE
 ```
 
-Open [http://localhost:2026](http://localhost:2026). Click **Run the demo** to watch both forecasts. Just above the chart, click **Contact latched** or **Contact clear** to replay that reading. Choose a response and click **Stage response**, then **Apply in simulation** to replay it and save a dispatch in `.relay/dispatches/`. [Demo walkthrough](demo.md)
+Keep Terminal open while using the app. Click **Run the demo**, then use **Contact latched** and **Contact clear** just above the forecast chart. [Demo walkthrough](demo.md)
 
 ## 3. Use another device or stop
 
-Press **Control+C** to stop. To open the demo on another device, change the last `npm start` line in the block to `npm start -- --host 0.0.0.0` and run it again. Open the Wi-Fi URL printed by the server on the second device. Both devices should be on the same trusted network. If the port is busy, use `npm start -- --port 2027` and open [http://localhost:2027](http://localhost:2027).
+Press **Control+C** to stop. To open the demo on another device on the same trusted network, start it with `npm start -- --port 0 --host 0.0.0.0` and open the Wi-Fi address printed in Terminal.
 
-To reuse the same copy, open Terminal, type `cd `, drag the extracted `hack-utd-day-zero-2026-main` folder into Terminal, and press Enter. Then run `npm start`.
+If you downloaded the [GitHub source ZIP](https://github.com/ezernackchristopher97-cloud/hack-utd-day-zero-2026/archive/refs/heads/main.zip), extract it and open its project folder in Terminal. Run `npm start -- --port 0 --open`.

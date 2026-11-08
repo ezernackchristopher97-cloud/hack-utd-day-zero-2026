@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { networkInterfaces } from 'node:os';
@@ -34,7 +35,7 @@ function createBrief(scenario, analysis, option, minute) {
   const observation = analysis.evidence.observation;
   const actions = option.actionIds.map(id => scenario.actions.find(action => action.id === id));
   return [
-    `AVON RELAY / SIMULATED SHIFT HANDOFF`,
+    `ABSURDITY GATE / SIMULATED SHIFT HANDOFF`,
     `${scenario.name} | Replay T+${minute} min`,
     `Without response: ${remaining}`,
     observation ? `Independent reading: ${observation.label} (T+${observation.delay} min).` : null,
@@ -239,27 +240,38 @@ async function start() {
   const { values } = parseArgs({ options: {
     host: { type: 'string', default: '127.0.0.1' },
     port: { type: 'string', default: '2026' },
+    open: { type: 'boolean' },
     eog: { type: 'string' },
     help: { type: 'boolean' }
   }});
   if (values.help) {
-    console.log('npm start -- [--port 2026] [--host 127.0.0.1] [--eog path/to/dataset]');
+    console.log('npm start -- [--port 2026] [--open] [--host 127.0.0.1] [--eog path/to/dataset]');
+    console.log('Use --port 0 for a free port. On a Mac, --open opens the app in your browser.');
     return;
   }
   const port = Number(values.port);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Port must be an integer from 1 to 65535.');
+  if (!values.port.trim() || !Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error('Port must be an integer from 0 to 65535.');
+  }
   const imported = values.eog ? await loadSponsorScenarios(values.eog) : [];
   const server = createAppServer([...imported, ...scenarios]);
-  server.on('error', error => { console.error(`Could not start Avon Relay. ${error.message}`); process.exitCode = 1; });
+  server.on('error', error => { console.error(`Could not start Absurdity Gate. ${error.message}`); process.exitCode = 1; });
   server.listen(port, values.host, () => {
+    const { port: assignedPort } = server.address();
     const host = values.host === '0.0.0.0' ? '127.0.0.1' : values.host.includes(':') ? `[${values.host}]` : values.host;
-    console.log(`Avon Relay · http://${host}:${port}`);
+    const url = `http://${host}:${assignedPort}/`;
+    console.log(`Absurdity Gate ${url}`);
     if (values.host === '0.0.0.0') {
       const addresses = lanAddresses();
-      for (const address of addresses) console.log(`Wi-Fi / LAN · http://${address}:${port}`);
-      if (!addresses.length) console.log(`Wi-Fi / LAN · use this computer’s IPv4 address and port ${port}.`);
+      for (const address of addresses) console.log(`Wi-Fi / LAN · http://${address}:${assignedPort}/`);
+      if (!addresses.length) console.log(`Wi-Fi / LAN · use this computer’s IPv4 address and port ${assignedPort}.`);
     }
     console.log('Press Ctrl+C to stop.');
+    if (values.open && process.platform === 'darwin') {
+      execFile('/usr/bin/open', [url], error => {
+        if (error) console.error(`Open ${url} in your browser.`);
+      });
+    }
   });
 }
 

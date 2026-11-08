@@ -1,26 +1,26 @@
-# Avon Relay
+# Absurdity Gate
 
 HackUTD 2026 Zero Day
 
 The Avon tank is at 799 barrels and rising. The gauge and flow readings fit two faults. Without a response, the tank could reach its shutdown limit of 875 barrels in 12 minutes. One minute at the pump can change whether the crew sends a truck or opens the auxiliary tank.
 
-Avon Relay lets a crew compare those choices before dispatch. It replays the incident with and without a response, shows how long the crew has, and records the decision for the next shift.
+Absurdity Gate lets a crew compare those choices before dispatch. It replays the incident with and without a response, shows how long the crew has, and records the decision for the next shift.
 
 ## Run it
 
 Use Node.js 18 or newer. Start the console from the project folder.
 
 ```sh
-npm start
+npm start -- --port 0
 ```
 
-Open [localhost:2026](http://localhost:2026). The included scenarios run offline. Press **Control+C** to stop the server. [Mac launch guide](docs/launch.md)
+Open the address printed in Terminal. The included scenarios run offline. Press **Control+C** to stop the server. [Mac launch guide](docs/launch.md)
 
 ## Try the water scenario
 
 1. Choose **Avon produced water** and click **Run the demo**. The gold line shows the forecast without a response. The green line shows what happens with the selected response.
 2. Just above the forecast chart, find **Drive contact check**. Click **Contact latched** to replay one reading. Click **Contact clear** to replay the other. The recommended response changes.
-3. Choose a response and click **Stage response**, then **Apply in simulation**. The chart replays the response and Relay saves a dispatch receipt. Click **Generate handoff** to see the reading, response, and action times. [Demo walkthrough](docs/demo.md)
+3. Choose a response and click **Stage response**, then **Apply in simulation**. The chart replays the response and the app saves a dispatch receipt. Click **Generate handoff** to see the reading, response, and action times. [Demo walkthrough](docs/demo.md)
 
 | Field reading | Shutdown window without a response | Cheapest response below the limit | Modeled cost |
 | --- | ---: | --- | ---: |
@@ -33,7 +33,7 @@ The contact check takes one minute. The portable meter takes four minutes and le
 
 ## Try the disturbance test
 
-Open **Disturbance test**. Set **Gauge** to **Fine gauge** and **Pulse size** to **+0.016 r**. Click **Run simulated pulse**. All three readings differ by three seconds. Switch to **Panel gauge** and run the same pulse. Two readings still match at the deadline. Select **+0.08 r** to see a faster pulse that crosses the limit. Relay blocks it and shows how far it goes over in the **Absurdity Gap**.
+Open **Disturbance test**. Set **Gauge** to **Fine gauge** and **Pulse size** to **+0.016 r**. Click **Run simulated pulse**. All three readings differ by three seconds. Switch to **Panel gauge** and run the same pulse. Two readings still match at the deadline. Select **+0.08 r** to see a faster pulse that crosses the limit. The app blocks it and shows how far it goes over in the **Absurdity Gap**.
 
 Click **Phase test** at the top of the disturbance section. Eight states share the same entropy and memory readings. Click **Read phase 1**, then **Read phase 2** and **Read phase 3** to narrow them down to one. [Method and sources](docs/method.md#disturbance-test)
 
@@ -47,9 +47,9 @@ The included cases use simulated readings, costs, and equipment. Applying a resp
 
 - **Avon data center** follows a cooling fault through a shift change and compares responses before the rack row reaches its temperature limit.
 - **Avon Exchange property** connects a cooling fault to tenant commitments. The recommended response reduces modeled tenant exposure from $2,391 to $0 over 30 minutes.
-- **EOG practice data** loads a network, operations settings, and telemetry. Relay flags pump failures, possible wear, and possible leaks, then compares response options and shared truck allocations. [EOG practice files](https://github.com/nihaal419/HackUTD-ZeroDay)
+- **EOG practice data** loads a network, operations settings, and telemetry. The app flags pump failures, possible wear, and possible leaks, then compares response options and shared truck allocations. [EOG practice files](https://github.com/nihaal419/HackUTD-ZeroDay)
 
-Put `network.json`, `ops.json`, and `telemetry.csv` in the same folder. Pass that folder’s path when you start Relay.
+Put `network.json`, `ops.json`, and `telemetry.csv` in the same folder. Pass that folder’s path when you start the console.
 
 ```sh
 npm start -- --eog "/path/to/eog-data"

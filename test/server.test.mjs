@@ -10,7 +10,7 @@ import { phaseCheck } from '../lib/phase-check.mjs';
 import { scenarios } from '../lib/scenarios.mjs';
 
 async function localServer(t, available) {
-  const directory = await mkdtemp(join(tmpdir(), 'avon-relay-'));
+  const directory = await mkdtemp(join(tmpdir(), 'absurdity-gate-'));
   const server = createAppServer(available, directory);
   t.after(async () => {
     server.closeAllConnections();

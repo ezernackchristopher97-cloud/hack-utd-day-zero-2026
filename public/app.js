@@ -815,7 +815,7 @@ async function initialize() {
     byId("scenario").replaceChildren(...choices);
     await loadScenario(scenarios[0].id);
   } catch (error) {
-    showLoadError(`Could not start Avon Relay. ${error.message}`, initialize);
+    showLoadError(`Could not start Absurdity Gate. ${error.message}`, initialize);
   }
 }
 

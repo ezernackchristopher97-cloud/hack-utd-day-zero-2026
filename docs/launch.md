@@ -24,7 +24,7 @@ npm start
 AVON
 ```
 
-Open [http://localhost:2026](http://localhost:2026). Click **Run the demo** to watch both forecasts. Select either drive contact reading to start that replay. Choose a response, stage it, and apply it to replay the response and save a dispatch in `.relay/dispatches/`.
+Open [http://localhost:2026](http://localhost:2026). Click **Run the demo** to watch both forecasts. Just above the chart, click **Contact latched** or **Contact clear** to replay that reading. Choose a response and click **Stage response**, then **Apply in simulation** to replay it and save a dispatch in `.relay/dispatches/`. [Demo walkthrough](demo.md)
 
 ## 3. Use another device or stop
 

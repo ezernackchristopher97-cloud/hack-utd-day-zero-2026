@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { phaseCheck } from '../lib/phase-check.mjs';
 
-test('EntPTC entropy and equilibrium memory coincide across all eight phase states', () => {
+test('entropy and memory match across all eight phase states', () => {
   const { states, entropy, memory } = phaseCheck();
   assert.equal(states.length, 8);
   assert.ok(Math.abs(entropy - 1.5012072706145636) < 1e-12);

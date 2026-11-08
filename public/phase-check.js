@@ -49,6 +49,7 @@ async function load() {
   }
 }
 
+document.getElementById('phase-link').addEventListener('click', () => { panel.open = true; });
 panel.addEventListener('toggle', load);
 read.addEventListener('click', () => { count += 1; render(); });
 reset.addEventListener('click', () => { count = 0; render(); });

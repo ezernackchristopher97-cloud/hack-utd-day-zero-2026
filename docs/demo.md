@@ -1,17 +1,20 @@
 # Avon Relay demo
 
-**0:00–0:25** Open the Avon water exercise. A transfer has failed and the tank is rising. Point to the range of shutdown times and the two plausible explanations.
+## Water scenario
 
-**0:25–0:55** Show the independent checks. Run the fast one and show what changed in the forecast. Compare the recommended response with doing nothing and with a cheaper action that misses the limit.
-
-**0:55–1:25** Stage the recommended plan and apply it. Advance past the baseline crossing. Show the work order and the next shift instructions.
-
-**1:25–1:50** Switch to the building exercise. Show which tenant commitments are exposed and how the selected response changes that exposure.
+1. Choose **Avon produced water**. Click **Run the demo** at the top of the page. The chart starts moving and shows the tank forecast with and without a response.
+2. Just above the forecast chart, find **Drive contact check**. Click **Contact latched**. The replay recommends throttling North Pad and sending a truck.
+3. Click **Contact clear**. The replay recommends opening the auxiliary tank. In the simulation, that keeps the tank below its shutdown limit for $662.
+4. To save this response, select it and click **Stage response**, then **Apply in simulation**. Click **Generate handoff** to see what the next shift needs.
 
 ## Disturbance test
 
-Open **Disturbance test** and point out the overlapping traces. Run a pulse of **0.016** on the panel gauge. Two readings still match at the deadline. Keep the same pulse and switch to the fine gauge. At three seconds, the three gauge readings differ. The recovery equation comes from [Toroidal Manifolds and Recursive Neural Dynamics](https://github.com/ezernackchristopher97-cloud/ENTPTCCONPAPER26/blob/main/paper/main.tex).
+1. Click **Disturbance test** next to **Contact clear**. Set **Gauge** to **Fine gauge** and **Pulse size** to **+0.016 r**.
+2. Click **Run simulated pulse**. All three gauge readings differ by three seconds. Change **Gauge** to **Panel gauge**, keep the same pulse size, and run it again. Two readings still match at the deadline.
+3. Select **+0.08 r** in **Pulse size**. The larger pulse would separate the readings sooner, but it crosses the exercise limit. Relay blocks it and shows the violation in the **Absurdity Gap**.
 
-Select **0.080**. The pulse would separate the readings sooner, but the model crosses the limit. The Absurdity Gap rises and the run is blocked. Open **EntPTC phase test** and click through the three phase readings. Eight states share the initial readout, and one state fits all three new readings.
+## Phase test
 
-The [Devpost rules](https://hackutd-zeroday.devpost.com/rules) cover entry eligibility and judging. The [submission page](https://hackutd-zeroday.devpost.com/) lists team registration at 11 p.m. Central on November 7, final submission at noon Central on November 8, and a two-minute demo limit.
+Click **Phase test** at the top right of the disturbance section. Click **Read phase 1**, then **Read phase 2** and **Read phase 3**. The list goes from eight possible states to four, then two, then one.
+
+The demo video limit is two minutes. [Devpost rules](https://hackutd-zeroday.devpost.com/rules)

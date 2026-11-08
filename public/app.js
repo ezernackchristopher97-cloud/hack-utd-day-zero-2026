@@ -21,6 +21,13 @@ const bits = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const percent = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 });
 const svgNS = "http://www.w3.org/2000/svg";
 const featuredOptions = 3;
+const driveCheck = "local-trip-contact";
+const contactButtons = [
+  ["briefing-contact-latched", "tripped"],
+  ["briefing-contact-clear", "clear"],
+  ["forecast-contact-latched", "tripped"],
+  ["forecast-contact-clear", "clear"],
+];
 let retryLoad;
 
 function element(tag, className, content) {
@@ -54,7 +61,7 @@ function value(level) {
 }
 
 function cost(amount) {
-  return Number.isFinite(amount) ? usd.format(amount) : "—";
+  return Number.isFinite(amount) ? usd.format(amount) : "Unavailable";
 }
 
 function point(trace, minute) {
@@ -162,6 +169,12 @@ function playFromStart() {
   startPlayback();
 }
 
+async function playReading(scenarioId, probeId, outcomeId) {
+  if (state.busy) return;
+  const current = state.data?.scenario.id === scenarioId && state.probe === probeId && state.outcome === outcomeId;
+  if (current || await loadScenario(scenarioId, probeId, outcomeId)) playFromStart();
+}
+
 function deadlineText(forecast) {
   if (forecast.earliest == null) return "Within limit";
   if (state.minute >= forecast.earliest) return `At ${time(forecast.earliest)}`;
@@ -206,7 +219,7 @@ function renderTime() {
   const currentActions = selectedActions().filter(action => action.delay <= state.minute);
   const lastAction = currentActions.at(-1);
   const reading = evidence.observation;
-  let message = "Watch the no-action and response readings change as the replay moves.";
+  let message = "Watch the readings change with and without a response.";
   if (reading && state.minute < reading.delay) message = `Field reading due at ${time(reading.delay)}.`;
   else if (lastAction) message = `${time(lastAction.delay)} · ${lastAction.label}${state.applied ? " in the simulation" : " in the response forecast"}.`;
   else if (reading) message = `${time(reading.delay)} · ${reading.label}.`;
@@ -324,7 +337,7 @@ function renderChart(baseline, selected) {
   byId("band-key").hidden = !bands.some(band => band.some(sample => sample.min < sample.max));
   byId("action-key").hidden = delays.size === 0;
   const limitText = `${limitLabel || "Operating limit"} ${value(limit)}.`;
-  const first = baseline.earliest == null ? "The no-response forecast stays within the limit." : `Without response, the limit is reached ${crossingWindow(baseline)} across modeled cases.`;
+  const first = baseline.earliest == null ? "The forecast stays within the limit without a response." : `Without a response, the forecast reaches the limit at ${crossingWindow(baseline)}.`;
   const branch = reading ? ` Reading at ${time(reading.delay)}.` : "";
   text("chart-description", `${first} ${limitText}${branch} ${selected ? planRisk(selected) : ""}`);
   text("chart-caption", `${limitText} ${first}${branch}`);
@@ -401,6 +414,21 @@ function selectedActions() {
     .sort((first, second) => first.delay - second.delay) || [];
 }
 
+function renderContactCheck() {
+  const check = state.data?.scenario.probes?.find(probe => probe.id === driveCheck);
+  byId("briefing-contact").hidden = !check;
+  byId("forecast-contact").hidden = !check;
+  for (const [id, outcomeId] of contactButtons) {
+    const button = byId(id);
+    const available = check?.outcomes.some(outcome => outcome.id === outcomeId && outcome.probability > 0);
+    button.disabled = state.busy || !available;
+    button.setAttribute("aria-pressed", String(state.probe === driveCheck && state.outcome === outcomeId));
+  }
+  const outcome = state.probe === driveCheck && check?.outcomes.find(item => item.id === state.outcome);
+  const result = outcome ? `${outcome.label}. ${branchRecommendation(outcome)}.` : "Choose a reading to replay its forecast.";
+  if (byId("contact-result").textContent !== result) text("contact-result", result);
+}
+
 function renderDecisionButtons() {
   const selected = option(state.selected);
   const unavailable = state.busy || !selected || selected.actionIds.length === 0;
@@ -414,6 +442,7 @@ function renderDecisionButtons() {
   byId("clear-response").disabled = state.busy;
   byId("scenario").disabled = state.busy;
   for (const id of ["run-demo", "play", "timeline", "reset"]) byId(id).disabled = state.busy || !state.data;
+  renderContactCheck();
 }
 
 function renderPlans(focusId) {
@@ -496,7 +525,8 @@ function renderTenants() {
 function renderEvidence() {
   const { scenario, evidence } = state.data;
   const hasHypotheses = Boolean(evidence?.hypotheses?.length);
-  byId("evidence-panel").hidden = !(hasHypotheses || scenario.observations?.length);
+  const hideEvidence = !(hasHypotheses || scenario.observations?.length);
+  for (const id of ["evidence-panel", "evidence-link", "forecast-evidence-link"]) byId(id).hidden = hideEvidence;
   if (byId("evidence-panel").hidden) return;
   for (const id of ["evidence-intro", "evidence-hypotheses"]) {
     const node = byId(id);
@@ -543,7 +573,7 @@ function renderEvidence() {
   byId("probes").replaceChildren(...studies);
   const observation = evidence?.observation;
   text("probe-result", observation
-    ? `Replaying ${observation.label}. Uncertainty ${bits.format(evidence.priorBits)} → ${bits.format(evidence.bits)} bits. Responses start after the ${observation.delay}-minute check.`
+    ? `${observation.label}. Uncertainty fell from ${bits.format(evidence.priorBits)} to ${bits.format(evidence.bits)} bits. The check takes ${observation.delay} min before the response can start.`
     : "");
 }
 
@@ -586,10 +616,7 @@ function renderProbe(scenario, probe, locked) {
       }
       button.append(element("span", "probe-branch-status", current ? "Play this reading again ▶" : "Play this reading ▶"));
     }
-    button.addEventListener("click", async () => {
-      if (state.busy || !possible) return;
-      if (current || await loadScenario(scenario.id, probe.id, outcome.id)) playFromStart();
-    });
+    button.addEventListener("click", () => playReading(scenario.id, probe.id, outcome.id));
     branches.append(button);
   }
   section.append(branches);
@@ -793,6 +820,9 @@ async function initialize() {
 }
 
 byId("run-demo").addEventListener("click", playFromStart);
+for (const [id, outcome] of contactButtons) {
+  byId(id).addEventListener("click", () => playReading(state.data.scenario.id, driveCheck, outcome));
+}
 byId("retry-load").addEventListener("click", () => retryLoad?.());
 byId("scenario").addEventListener("change", event => loadScenario(event.target.value));
 byId("play").addEventListener("click", togglePlayback);

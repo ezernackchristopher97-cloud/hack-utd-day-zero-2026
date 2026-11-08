@@ -57,6 +57,14 @@ h2 { font-size: clamp(23px, 2.1vw, 30px); font-weight: 670; letter-spacing: -.04
 .briefing-copy > p:not(.eyebrow) { color: var(--soft); max-width: 46ch; font-size: clamp(14px, 1.2vw, 17px); line-height: 1.55; margin-bottom: 17px; }
 .briefing-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .briefing-actions .button { text-decoration: none; display: inline-flex; align-items: center; gap: 9px; }
+.contact-check { padding: 10px 12px; border: 1px solid #486c59; border-radius: 8px; background: var(--subpanel); }
+#briefing-contact { width: fit-content; margin-top: 14px; }
+#forecast-contact { margin-bottom: 12px; }
+.contact-check h2, .contact-check h3 { margin: 0 0 6px; font-size: 14px; font-weight: 700; letter-spacing: 0; }
+.contact-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.contact-actions a { display: inline-flex; align-items: center; gap: 7px; }
+.contact-actions button[aria-pressed="true"] { border-color: var(--green); background: #214333; }
+.contact-check p { margin: 7px 0 0; color: var(--soft); font-size: 13px; line-height: 1.4; }
 .briefing-figure { min-width: 0; margin: 0; }
 .branch-diagram { width: 100%; display: block; overflow: visible; }
 .branch-diagram text { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .11em; }
@@ -436,6 +444,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .disturbance-gap strong[data-violation="true"] { color: var(--gold); }
 .disturbance-gap p, .disturbance-groups { margin: 5px 0 0; font-size: 13px; }
 .phase-check { margin-top: 20px; border-top: 1px solid var(--border-soft); padding-top: 14px; }
+.phase-link { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; text-decoration: none; }
 .phase-check summary { width: fit-content; margin-bottom: 12px; color: var(--green); font-weight: 700; }
 .phase-check p { margin-bottom: 9px; }
 .phase-metrics { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 10px; }

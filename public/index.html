@@ -38,12 +38,19 @@
     <section class="briefing" aria-labelledby="briefing-title">
       <div class="briefing-copy">
         <p class="eyebrow"><span class="indicator"></span> AVON OPERATIONS / NIGHT SHIFT</p>
-        <h1 id="briefing-title">One signal.<br><span>Two futures.</span></h1>
-        <p>The same warning can hide different faults. Test a second signal, see what breaks next, and choose a response before the window closes.</p>
+        <h1 id="briefing-title">Avon <span>Relay</span></h1>
+        <p>Compare the forecast with and without a response. Try a field reading to see which fault fits and how the response changes.</p>
         <div class="briefing-actions">
           <button type="button" class="button primary" id="run-demo" disabled>Run the demo <span aria-hidden="true">▶</span></button>
-          <a class="button secondary" href="#evidence-panel">Explore the evidence <span aria-hidden="true">↗</span></a>
+          <a class="button secondary" href="#evidence-panel" id="evidence-link" hidden>Field evidence</a>
           <a class="button text-button disturbance-jump" href="#disturbance-test">Disturbance test <span aria-hidden="true">↓</span></a>
+        </div>
+        <div class="contact-check" id="briefing-contact" hidden>
+          <h2>Drive contact check</h2>
+          <div class="contact-actions">
+            <button type="button" class="button secondary" id="briefing-contact-latched" aria-pressed="false" disabled>Contact latched</button>
+            <button type="button" class="button secondary" id="briefing-contact-clear" aria-pressed="false" disabled>Contact clear</button>
+          </div>
         </div>
       </div>
       <figure class="briefing-figure" aria-hidden="true">
@@ -92,17 +99,17 @@
       <div class="metrics" aria-label="Incident forecast summary">
         <div class="metric">
           <span class="eyebrow">EARLIEST LIMIT</span>
-          <strong id="deadline" class="amber">—</strong>
+          <strong id="deadline" class="amber">Loading</strong>
           <span id="deadline-detail">Across tested conditions</span>
         </div>
         <div class="metric">
           <span class="eyebrow">AT THE PLAYHEAD</span>
-          <strong id="current-value">—</strong>
+          <strong id="current-value">Loading</strong>
           <span id="current-detail">Observed state</span>
         </div>
         <div class="metric">
           <span class="eyebrow">FORECAST CONDITIONS</span>
-          <strong id="condition-count">—</strong>
+          <strong id="condition-count">Loading</strong>
           <span id="condition-detail">Tested conditions</span>
         </div>
         <div class="metric">
@@ -119,18 +126,27 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">01 / FORECAST</p>
-              <h2 id="forecast-title">Watch the futures split</h2>
+              <h2 id="forecast-title">Forecast</h2>
             </div>
             <span class="tag" id="chart-mode">PLAN PREVIEW</span>
           </div>
+          <div class="contact-check" id="forecast-contact" hidden>
+            <h3>Drive contact check</h3>
+            <div class="contact-actions">
+              <button type="button" class="button secondary" id="forecast-contact-latched" aria-pressed="false" disabled>Contact latched</button>
+              <button type="button" class="button secondary" id="forecast-contact-clear" aria-pressed="false" disabled>Contact clear</button>
+              <a class="button text-button" href="#disturbance-test">Disturbance test <span aria-hidden="true">↓</span></a>
+            </div>
+            <p id="contact-result" role="status">Choose a reading to replay its forecast.</p>
+          </div>
           <div class="replay-readings">
             <div class="replay-reading" id="baseline-reading" data-track="baseline">
-              <span>No action</span><strong id="baseline-level">—</strong>
+              <span>No action</span><strong id="baseline-level">Loading</strong>
               <div class="replay-meter" aria-hidden="true"><span id="baseline-fill"></span></div>
               <small class="replay-state" id="baseline-status"></small>
             </div>
             <div class="replay-reading" id="plan-reading" data-track="plan">
-              <span>With response</span><strong id="plan-level">—</strong>
+              <span>With response</span><strong id="plan-level">Loading</strong>
               <div class="replay-meter" aria-hidden="true"><span id="plan-fill"></span></div>
               <small class="replay-state" id="plan-status"></small>
             </div>
@@ -160,7 +176,7 @@
             <button type="button" class="button text-button" id="reset" disabled>Reset</button>
           </div>
           <p id="replay-message" class="replay-message" role="status">Press Play to run the forecast. The chart shows both outcomes.</p>
-          <a class="forecast-evidence" href="#evidence-panel">Try another field reading ↓</a>
+          <a class="forecast-evidence" href="#evidence-panel" id="forecast-evidence-link" hidden>Field evidence ↓</a>
           <a class="mobile-jump" href="#plans-title">Jump to response options ↓</a>
         </section>
 
@@ -168,9 +184,9 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">02 / FIELD EVIDENCE</p>
-              <h2 id="evidence-title" tabindex="-1">What would change your mind?</h2>
+              <h2 id="evidence-title" tabindex="-1">Field evidence</h2>
             </div>
-            <span class="tag" id="evidence-bits">—</span>
+            <span class="tag" id="evidence-bits">Loading</span>
           </div>
           <p id="evidence-intro" class="muted">These explanations can fit the same readings. Compare the possible results of a field check and replay one to see what it changes.</p>
           <div class="evidence-grid">
@@ -191,7 +207,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">04 / DEPENDENCIES</p>
-              <h2 id="network-title">Follow the cascade</h2>
+              <h2 id="network-title">Equipment and dependencies</h2>
             </div>
             <span class="tag">LIVE REPLAY</span>
           </div>
@@ -204,7 +220,7 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">SERVICE IMPACT</p>
-              <h2 id="tenant-title">Who feels the disruption</h2>
+              <h2 id="tenant-title">Tenant impact</h2>
             </div>
             <span class="tag">TENANT EXPOSURE</span>
           </div>
@@ -225,7 +241,7 @@
               <p class="eyebrow">03 / DECISION</p>
               <h2 id="plans-title" tabindex="-1">Response options</h2>
             </div>
-            <span class="tag" id="plan-count">—</span>
+            <span class="tag" id="plan-count">Loading</span>
           </div>
           <p class="muted plan-intro" id="plan-intro">Choose a response to compare against no action.</p>
           <div id="plans" class="plan-list" role="group" aria-label="Response options"></div>
@@ -244,11 +260,11 @@
           <div class="panel-head">
             <div>
               <p class="eyebrow">05 / HANDOFF</p>
-              <h2 id="handoff-title">Pass it on</h2>
+              <h2 id="handoff-title">Shift handoff</h2>
             </div>
             <span class="tag">SHIFT RECORD</span>
           </div>
-          <p class="muted" id="handoff-description">Generate a shift note with the forecast, actions and follow-up.</p>
+          <p class="muted" id="handoff-description">Generate a shift note with the forecast and next steps.</p>
           <p class="decision-note" id="receipt"></p>
           <div class="decision-buttons handoff-buttons">
             <button type="button" class="button secondary" id="handoff-generate" disabled>Generate handoff</button>
@@ -265,9 +281,9 @@
       <div class="panel-head">
         <div>
           <p class="eyebrow">06 / DIAGNOSTIC TEST</p>
-          <h2 id="disturbance-title">Same reading. Different response.</h2>
+          <h2 id="disturbance-title">Disturbance test</h2>
         </div>
-        <span class="tag">SIMULATION ONLY</span>
+        <a class="button secondary phase-link" href="#phase-check" id="phase-link">Phase test <span aria-hidden="true">↓</span></a>
       </div>
       <p class="muted disturbance-intro">All three models show the same steady reading. Give them the same simulated pulse and see which gauge can tell them apart before time runs out.</p>
       <p class="notice" id="disturbance-error" role="alert" hidden></p>
@@ -338,7 +354,7 @@
         </figure>
       </div>
       <details class="phase-check" id="phase-check">
-        <summary>EntPTC phase test</summary>
+        <summary>Phase test</summary>
         <p class="muted">Eight phase states share the same entropy and memory. Take one phase reading at a time to see which states still fit.</p>
         <p id="phase-status" role="status">Open to load the phase test.</p>
         <div id="phase-test-controls" hidden>

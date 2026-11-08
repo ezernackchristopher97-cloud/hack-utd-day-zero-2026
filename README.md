@@ -33,7 +33,7 @@ The contact check takes one minute. The portable meter takes four minutes and le
 
 ## Try the disturbance test
 
-Open **Disturbance test**. Set **Gauge** to **Fine gauge** and **Pulse size** to **+0.016 r**. Click **Run simulated pulse**. All three readings differ by three seconds. Switch to **Panel gauge** and run the same pulse. Two readings still match at the deadline. Select **+0.08 r** to see a faster pulse that crosses the limit. The app blocks it and shows how far it goes over in the **Absurdity Gap**.
+Open **Disturbance test**. Set **Gauge** to **Fine gauge** and **Pulse size** to **+0.016 r**. Click **Run simulated pulse**. All three readings differ by three seconds. Switch to **Panel gauge** to replay the same pulse. Two readings still match at the deadline. Click **Run suggested pulse** to try a pulse suited to that gauge. Select **+0.08 r** to see a faster pulse that crosses the limit. The app blocks it and shows the violation in the **Absurdity Gap**.
 
 Click **Phase test** at the top of the disturbance section. Eight states share the same entropy and memory readings. Click **Read phase 1**, then **Read phase 2** and **Read phase 3** to narrow them down to one. [Method and sources](docs/method.md#disturbance-test)
 

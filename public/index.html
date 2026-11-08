@@ -307,8 +307,8 @@
             <select id="disturbance-pulse"></select>
           </div>
           <div class="disturbance-actions">
-            <button class="button primary" id="disturbance-run" type="button">Run simulated pulse <span aria-hidden="true">▶</span></button>
-            <button class="button text-button" id="disturbance-suggest" type="button" hidden>Use suggested setup</button>
+            <button class="button primary" id="disturbance-run" type="button"><span id="disturbance-run-label">Run simulated pulse</span> <span aria-hidden="true">▶</span></button>
+            <button class="button text-button" id="disturbance-suggest" type="button" hidden>Run suggested pulse</button>
           </div>
           <div class="disturbance-verdict" id="disturbance-verdict" role="status" aria-atomic="true">
             <span class="eyebrow" id="disturbance-result-label"></span>
@@ -323,7 +323,7 @@
         </div>
         <figure class="disturbance-figure">
           <figcaption class="disturbance-chart-head">
-            <span class="eyebrow">MODELED RADIUS (r)</span>
+            <span class="eyebrow">GAUGE READINGS (r)</span>
             <span class="tag" id="disturbance-chart-mode">NO PULSE</span>
           </figcaption>
           <div class="disturbance-plot">

@@ -2,7 +2,7 @@
 
 ## 1. Download the project
 
-Save `absurdity-gate-demo.zip` in **Downloads**. If Safari extracts it, keep the `absurdity-gate` folder there. If you already have the project folder open in Terminal, skip to the command in [Run it](../README.md#run-it).
+Save `absurdity-gate-replay.zip` in **Downloads**. If Safari extracts it, keep the `absurdity-gate-replay` folder there. If you already have the project folder open in Terminal, skip to the command in [Run it](../README.md#run-it).
 
 Absurdity Gate runs on Node 18 or newer. If needed, install [Node.js LTS](https://nodejs.org/en/download) and open a new Terminal window.
 
@@ -14,17 +14,18 @@ Open **Terminal** and paste the whole block. It extracts the ZIP into a fresh fo
 /bin/bash <<'ABSURDITY_GATE'
 set -e
 downloads="$HOME/Downloads"
-demo="$(mktemp -d "$downloads/absurdity-gate.XXXXXX")"
-if [ -f "$downloads/absurdity-gate-demo.zip" ]; then
-  /usr/bin/unzip -q "$downloads/absurdity-gate-demo.zip" -d "$demo"
-elif [ -d "$downloads/absurdity-gate" ]; then
-  cp -R "$downloads/absurdity-gate" "$demo/absurdity-gate"
+build=absurdity-gate-replay
+demo="$(mktemp -d "$downloads/$build.XXXXXX")"
+if [ -f "$downloads/$build.zip" ]; then
+  /usr/bin/unzip -q "$downloads/$build.zip" -d "$demo"
+elif [ -d "$downloads/$build" ]; then
+  cp -R "$downloads/$build" "$demo/$build"
 else
-  echo 'Save absurdity-gate-demo.zip in Downloads first.'
+  echo "Save $build.zip in Downloads first."
   exit 1
 fi
-cd "$demo/absurdity-gate"
-grep -Fq '<title>Absurdity Gate</title>' public/index.html || { echo 'This download is not Absurdity Gate.'; exit 1; }
+cd "$demo/$build"
+grep -Fq 'Run suggested pulse' public/index.html || { echo "Download $build.zip again."; exit 1; }
 npm start -- --port 0 --open
 ABSURDITY_GATE
 ```

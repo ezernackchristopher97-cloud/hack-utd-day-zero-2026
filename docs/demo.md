@@ -10,7 +10,7 @@
 ## Disturbance test
 
 1. Click **Disturbance test** next to **Contact clear**. Set **Gauge** to **Fine gauge** and **Pulse size** to **+0.016 r**.
-2. Click **Run simulated pulse**. All three gauge readings differ by three seconds. Change **Gauge** to **Panel gauge**, keep the same pulse size, and run it again. Two readings still match at the deadline.
+2. Click **Run simulated pulse**. All three gauge readings differ by three seconds. Change **Gauge** to **Panel gauge**. The same pulse replays automatically. Two readings still match at the deadline. **Run suggested pulse** tries the panel gauge's suggested pulse.
 3. Select **+0.08 r** in **Pulse size**. The larger pulse would separate the readings sooner, but it crosses the exercise limit. The app blocks it and shows the violation in the **Absurdity Gap**.
 
 ## Phase test

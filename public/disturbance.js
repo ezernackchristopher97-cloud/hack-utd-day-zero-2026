@@ -9,6 +9,7 @@ const gaugeReading = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const millisecondsPerSample = 450;
 
 let test;
 let active;
@@ -35,6 +36,10 @@ function time(seconds) {
   return `T${seconds < 0 ? "−" : "+"}${Math.abs(seconds)} s`;
 }
 
+function selectedGauge() {
+  return test.gauges.find(gauge => gauge.id === byId("gauge").value);
+}
+
 function candidate() {
   const gaugeId = byId("gauge").value;
   const amplitude = Number(byId("pulse").value);
@@ -42,7 +47,7 @@ function candidate() {
 }
 
 function fillPulses(preferred) {
-  const gauge = test.gauges.find(item => item.id === byId("gauge").value);
+  const gauge = selectedGauge();
   const pulses = test.candidates.filter(item => item.gaugeId === gauge.id);
   const choices = pulses.map(pulse => {
     const note = !pulse.safe ? " · over limit" : pulse.amplitude === gauge.recommendedAmplitude ? " · suggested" : "";
@@ -60,11 +65,11 @@ function fillPulses(preferred) {
 function setVerdict(sampling = false) {
   const pulse = candidate();
   const { deadline, limit, window } = test.config;
-  const gauge = test.gauges.find(item => item.id === pulse.gaugeId);
-  const isSuggested = test.recommended?.amplitude === pulse.amplitude &&
-    test.recommended.gaugeId === pulse.gaugeId;
-  byId("suggest").hidden = !test.recommended || isSuggested;
-  byId("run").disabled = !pulse.safe || pulse.amplitude === 0;
+  const gauge = selectedGauge();
+  const isSuggested = gauge.recommendedAmplitude === pulse.amplitude;
+  byId("suggest").hidden = gauge.recommendedAmplitude == null || isSuggested;
+  byId("run").disabled = !pulse.safe;
+  byId("run-label").textContent = !pulse.safe ? "Pulse blocked" : pulse.amplitude ? "Run simulated pulse" : "Run without a pulse";
 
   let label = isSuggested ? "SUGGESTED SETUP" : "TEST SETUP";
   let result = "Ready to test";
@@ -76,13 +81,13 @@ function setVerdict(sampling = false) {
     result = "Above the exercise limit";
     detail = `Modeled peak ${number.format(pulse.peak)} r exceeds ${number.format(limit)} r. Choose a smaller pulse.`;
     tone = "caution";
-  } else if (pulse.amplitude === 0) {
-    result = "All three readings match";
-    detail = "Choose a pulse to compare how the three models respond.";
   } else if (sampling) {
     label = "GAUGE RESULT";
     result = "Sampling…";
-    detail = "Watch what the gauge reads as the three models respond.";
+    detail = `Reading the ${gauge.label.toLowerCase()} at each sample.`;
+  } else if (pulse.amplitude === 0) {
+    result = "All three readings match";
+    detail = "Without a pulse, all three models stay at the same reading.";
   } else if (active) {
     label = "GAUGE RESULT";
     if (pulse.eligible) {
@@ -113,10 +118,7 @@ function setVerdict(sampling = false) {
 function points(samples, read, x, y) {
   const coordinates = samples.map((sample, index) => {
     const pos = `${x(sample.time)},${y(read(sample))}`;
-    if (sample.time === 0 && index > 0) {
-      return `${x(0)},${y(read(samples[index - 1]))} ${pos}`;
-    }
-    return pos;
+    return index ? `${x(sample.time)},${y(read(samples[index - 1]))} ${pos}` : pos;
   });
   return coordinates.join(" ");
 }
@@ -139,6 +141,8 @@ function plot() {
   const y = value => bottom - (value - min) / (max - min) * (bottom - top);
   const layer = byId("drawing");
   const series = [];
+  const hasPulse = active?.amplitude > 0;
+  let reveal;
   layer.replaceChildren(
     svg("rect", { x: x(deadline), y: top, width: right - x(deadline), height: bottom - top, class: "disturbance-late-zone" }),
     svg("line", {
@@ -169,40 +173,46 @@ function plot() {
     x1: left, x2: right, y1: y(baseline), y2: y(baseline),
     class: "disturbance-trace", "data-kind": "baseline",
   }));
-  if (active) {
+  if (hasPulse) {
+    reveal = svg("rect", { x: left - 2, y: top - 2, width: 0, height: bottom - top + 4 });
+    const clip = svg("clipPath", { id: "disturbance-reveal" });
+    clip.append(reveal);
+    const traces = svg("g", { "clip-path": "url(#disturbance-reveal)" });
     for (const mechanism of test.mechanisms) {
-      const value = sample => sample.values.find(item => item.id === mechanism.id).value;
-      layer.append(svg("polyline", {
-        points: points(shown.samples, value, x, y),
+      const reading = sample => sample.values.find(item => item.id === mechanism.id).reading;
+      traces.append(svg("polyline", {
+        points: points(shown.samples, reading, x, y),
         class: "disturbance-trace disturbance-pulse-trace",
         "data-kind": mechanism.id,
       }));
     }
     if (active.firstDistinct != null) {
-      layer.append(svg("line", {
+      traces.append(svg("line", {
         x1: x(active.firstDistinct), x2: x(active.firstDistinct), y1: top, y2: bottom,
         class: "disturbance-first-line", "data-eligible": active.eligible,
       }));
     }
+    layer.append(clip, traces);
   }
 
   const line = svg("line", { y1: top, y2: bottom, class: "disturbance-cursor" });
   layer.append(line);
-  for (const mechanism of active ? test.mechanisms : [{ id: "baseline" }]) {
+  for (const mechanism of hasPulse ? test.mechanisms : [{ id: "baseline" }]) {
     const dot = svg("circle", { r: 5, class: "disturbance-dot", "data-kind": mechanism.id });
     layer.append(dot);
     series.push({ id: mechanism.id, dot });
   }
-  cursor = { x, y, line, series };
-  byId("chart-mode").textContent = active ? "SIMULATED PULSE" : "NO PULSE";
-  byId("chart-description").textContent = active
-    ? "The no-pulse baseline stays flat. After the pulse one model recovers, one holds, and one grows. Gauge readings for the selected sample and the full table follow the chart."
+  cursor = { x, y, line, series, reveal, left };
+  byId("chart-mode").textContent = hasPulse ? selectedGauge().label.toUpperCase() : "NO PULSE";
+  byId("chart-description").textContent = hasPulse
+    ? "The chart draws the selected gauge's readings as the test runs. Each reading holds until the next sample."
     : "All three models follow the same flat line without a pulse. The sample viewer shows what the selected gauge would read.";
 }
 
 function renderLegend() {
-  const legend = [{ id: "baseline", label: active ? "No pulse" : "No pulse · all three overlap" }];
-  if (active) legend.push(...test.mechanisms);
+  const hasPulse = active?.amplitude > 0;
+  const legend = [{ id: "baseline", label: hasPulse ? "No pulse" : "No pulse · all three overlap" }];
+  if (hasPulse) legend.push(...test.mechanisms);
   byId("legend").replaceChildren(...legend.map(item => {
     const entry = element("li");
     entry.dataset.kind = item.id;
@@ -245,7 +255,15 @@ function renderReadings() {
     return entry;
   });
   byId("table-body").replaceChildren(...rows);
-  byId("table-caption").textContent = active ? "Gauge readings with the selected pulse" : "Gauge readings without a pulse";
+  byId("table-caption").textContent = active?.amplitude ? "Gauge readings with the selected pulse" : "Gauge readings without a pulse";
+}
+
+function moveCursor(time) {
+  const x = cursor.x(time);
+  cursor.line.setAttribute("x1", x);
+  cursor.line.setAttribute("x2", x);
+  cursor.reveal?.setAttribute("width", x - cursor.left + 3);
+  for (const { dot } of cursor.series) dot.setAttribute("cx", x);
 }
 
 function showSample(index) {
@@ -263,14 +281,11 @@ function showSample(index) {
     const reading = sample.values.find(value => value.id === item.id).reading;
     item.reading.textContent = `${gaugeReading.format(reading)} r`;
   }
-  const x = cursor.x(sample.time);
-  cursor.line.setAttribute("x1", x);
-  cursor.line.setAttribute("x2", x);
   for (const { id, dot } of cursor.series) {
-    const value = id === "baseline" ? test.config.baseline : sample.values.find(item => item.id === id).value;
-    dot.setAttribute("cx", x);
-    dot.setAttribute("cy", cursor.y(value));
+    const reading = id === "baseline" ? test.config.baseline : sample.values.find(item => item.id === id).reading;
+    dot.setAttribute("cy", cursor.y(reading));
   }
+  moveCursor(sample.time);
 }
 
 function stopAnimation() {
@@ -279,7 +294,7 @@ function stopAnimation() {
 }
 
 function animateTo(lastIndex) {
-  if (reducedMotion.matches || sampleIndex >= lastIndex) {
+  if (sampleIndex >= lastIndex) {
     showSample(lastIndex);
     setVerdict();
     return;
@@ -287,10 +302,18 @@ function animateTo(lastIndex) {
   const firstIndex = sampleIndex;
   const start = performance.now();
   const advance = now => {
-    const index = Math.min(lastIndex, firstIndex + Math.floor((now - start) / 240));
+    const elapsed = Math.max(0, now - start);
+    const position = Math.min(lastIndex, firstIndex + elapsed / millisecondsPerSample);
+    const index = Math.floor(position);
     if (index !== sampleIndex) showSample(index);
-    if (index < lastIndex) animation = requestAnimationFrame(advance);
-    else {
+    if (index < lastIndex) {
+      if (!reducedMotion.matches) {
+        const currentTime = shown.samples[index].time;
+        const nextTime = shown.samples[index + 1].time;
+        moveCursor(currentTime + (position - index) * (nextTime - currentTime));
+      }
+      animation = requestAnimationFrame(advance);
+    } else {
       animation = undefined;
       setVerdict();
     }
@@ -312,7 +335,7 @@ function render(replay = false) {
   const focusIndex = shown.samples.findIndex(sample => sample.time === focusTime);
   if (replay) {
     setVerdict(true);
-    showSample(shown.samples.findIndex(sample => sample.time === 0));
+    showSample(0);
     animateTo(focusIndex);
   } else {
     setVerdict();
@@ -354,21 +377,23 @@ byId("gauge").addEventListener("change", () => {
   fillPulses(amplitude);
   const pulse = candidate();
   if (active) active = pulse.safe && pulse.amplitude === amplitude ? pulse : null;
-  render();
+  render(Boolean(active));
 });
 byId("pulse").addEventListener("change", () => {
   active = null;
   render();
 });
-byId("run").addEventListener("click", () => {
-  active = candidate();
+function runPulse() {
+  const pulse = candidate();
+  if (!pulse.safe) return;
+  active = pulse;
   render(true);
-});
+}
+
+byId("run").addEventListener("click", runPulse);
 byId("suggest").addEventListener("click", () => {
-  byId("gauge").value = test.recommended.gaugeId;
-  fillPulses(test.recommended.amplitude);
-  active = null;
-  render();
+  byId("pulse").value = selectedGauge().recommendedAmplitude;
+  runPulse();
   byId("run").focus();
 });
 byId("sample").addEventListener("input", event => {

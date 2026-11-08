@@ -8,6 +8,24 @@ The field check uses part of the response window. Every conditional plan is simu
 
 The observation and intervention distinction draws on Christopher Ezernack's work on interface-limited reconstruction and systems that appear equivalent under passive observation while responding differently to a perturbation. [Boundary Limited Observer Systems](https://github.com/ezernackchristopher97-cloud/BoundaryObserver) · [Toroidal Manifolds and Recursive Neural Dynamics](https://github.com/ezernackchristopher97-cloud/ENTPTCCONPAPER26/blob/main/paper/main.tex)
 
+## Disturbance test
+
+The paper gives the radial displacement as $r(t)-1=(r(0)-1)e^{-\lambda t}$. When $r(0)=1$, positive, zero, and negative rates give the same radial history. The exercise starts from that shared baseline. A pulse of size $a$ sets $r(0)=1+a$. Relay computes each trajectory and bins the samples at the selected gauge resolution. One sample separates the models when their three gauge readings differ. [Radial recovery](https://github.com/ezernackchristopher97-cloud/ENTPTCCONPAPER26/blob/main/paper/main.tex#L270-L280) · [Finite readouts](https://github.com/ezernackchristopher97-cloud/ENTPTCCONPAPER26/blob/main/paper/main.tex#L425-L435)
+
+Relay checks a fixed menu of pulse sizes. It selects the smallest one whose first separating sample arrives by the exercise deadline and whose trajectory stays inside the exercise limit for all three models over the observation window. The decaying curve peaks at the start, the flat curve is constant, and the growing curve peaks at the end. Those endpoints bound the entire window between samples. If the gauge, deadline, and limit leave no qualifying pulse, the exercise reports that result.
+
+With a pulse of 0.016, the panel gauge shows 1.00, 1.00, and 1.02 at the five second deadline. The fine gauge distinguishes the models at three seconds with readings of 1.00, 1.01, and 1.02. A pulse of 0.080 separates the readings sooner but reaches 1.209 within eight seconds, above the exercise limit of 1.20.
+
+The rates, pulse sizes, and limits are synthetic. The exercise uses a scalar displacement and a gauge without measurement noise. It runs separately from the EOG forecast and dispatch. The wider field of active fault diagnosis covers the use of designed inputs to distinguish models. [Input design for active fault diagnosis](https://doi.org/10.1016/j.arcontrol.2019.03.002)
+
+### Absurdity Gap
+
+The test uses the normalized residual in Christopher Ezernack’s *The Absurdity Gap: Structural Incompatibility as a Distinct Quantity in Statistical Learning and Complex Systems*, July 2026 draft, §§4.2, 4.4, and 4.6. The limit residual is the positive excess divided by the 0.20 headroom from baseline to limit. The score is $1-e^{-\text{residual}}$. A positive excess blocks the test. The 0.080 pulse scores 0.0437 and is blocked. The 0.016 pulse has a gap of zero even on the panel gauge, where two models still share a reading. The gap measures the limit violation. The gauge reports which models it can distinguish.
+
+### EntPTC phase test
+
+Christopher Ezernack’s *EntPTC: Consciousness, Toroidal Dynamics, and Recursive Entropic Filtering*, November 2026 draft, §3.3 and Appendix D.2, gives eight equilibrium phase combinations in $\{0,\pi\}^3$. The test computes the Bernoulli probabilities $p_j=(1+0.6\cos\theta_j)/2$ and sums their binary entropies in nats. All eight yield the same equilibrium entropy of 1.501207 and memory of 1.000805. Adding one cosine reading at a time narrows the compatible states from eight to four, two, and one. The extra readings illustrate the observation classes described in §4 of the paper and the interface refinement in [Boundary Limited Observer Systems](https://github.com/ezernackchristopher97-cloud/BoundaryObserver).
+
 ## Response
 
 Every simulated minute adds the net rate to the state. The water exercise uses a volume balance. The cooling exercises use local temperature ramps. An action starts after its modeled delay and can modify a rate or change the volume in a single step. The engine records the first protective crossing separately from exceeding capacity and propagates disruptions over explicit timed links. The unchecked trace continues beyond the threshold to show what a failed response could expose.

@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { createAppServer } from '../server.mjs';
+import { disturbanceTest } from '../lib/disturbance.mjs';
+import { phaseCheck } from '../lib/phase-check.mjs';
 import { scenarios } from '../lib/scenarios.mjs';
 
 async function localServer(t, available) {
@@ -27,6 +29,24 @@ test('routes imported scenario IDs from the returned scenario list', async t => 
   const response = await fetch(`${base}/api/scenarios/${encodeURIComponent(list.scenarios[0].id)}`);
   assert.equal(response.status, 200);
   assert.equal((await response.json()).scenario.id, id);
+});
+
+test('serves the disturbance test with the console', async t => {
+  const { base } = await localServer(t);
+  const page = await (await fetch(base)).text();
+  assert.match(page, /src="[^"]*disturbance\.js"/);
+  const asset = await fetch(`${base}/disturbance.js`);
+  assert.equal(asset.status, 200);
+  assert.match(asset.headers.get('content-type'), /javascript/);
+  const response = await fetch(`${base}/api/disturbance`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), disturbanceTest());
+  assert.equal((await fetch(`${base}/api/disturbance`, { method: 'POST' })).status, 405);
+  assert.match(page, /src="[^"]*phase-check\.js"/);
+  assert.equal((await fetch(`${base}/phase-check.js`)).status, 200);
+  const phases = await fetch(`${base}/api/phase-check`);
+  assert.equal(phases.status, 200);
+  assert.deepEqual(await phases.json(), phaseCheck());
 });
 
 test('serves exercises and accounts for probe delays in the saved response', async t => {

@@ -8,6 +8,8 @@
   <title>Avon Relay · Operations Console</title>
   <link rel="stylesheet" href="./styles.css">
   <script type="module" src="./app.js"></script>
+  <script type="module" src="./disturbance.js"></script>
+  <script type="module" src="./phase-check.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to incident</a>
@@ -41,6 +43,7 @@
         <div class="briefing-actions">
           <button type="button" class="button primary" id="run-demo" disabled>Run the demo <span aria-hidden="true">▶</span></button>
           <a class="button secondary" href="#evidence-panel">Explore the evidence <span aria-hidden="true">↗</span></a>
+          <a class="button text-button disturbance-jump" href="#disturbance-test">Disturbance test <span aria-hidden="true">↓</span></a>
         </div>
       </div>
       <figure class="briefing-figure" aria-hidden="true">
@@ -257,6 +260,97 @@
         </section>
       </div>
     </div>
+
+    <section class="panel disturbance" id="disturbance-test" aria-labelledby="disturbance-title">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">06 / DIAGNOSTIC TEST</p>
+          <h2 id="disturbance-title">Same reading. Different response.</h2>
+        </div>
+        <span class="tag">SIMULATION ONLY</span>
+      </div>
+      <p class="muted disturbance-intro">All three models show the same steady reading. Give them the same simulated pulse and see which gauge can tell them apart before time runs out.</p>
+      <p class="notice" id="disturbance-error" role="alert" hidden></p>
+      <button type="button" class="button secondary" id="disturbance-retry" hidden>Reload test</button>
+      <p class="muted" id="disturbance-loading" role="status">Loading the disturbance test…</p>
+      <noscript><p class="muted">Enable JavaScript to run the simulated test.</p></noscript>
+      <div class="disturbance-layout" id="disturbance-layout" hidden>
+        <div class="disturbance-settings">
+          <div class="disturbance-window">
+            <span class="eyebrow">DECISION DEADLINE</span>
+            <strong id="disturbance-deadline"></strong>
+            <span class="muted" id="disturbance-limit"></span>
+          </div>
+          <div class="disturbance-field">
+            <label for="disturbance-gauge">Gauge</label>
+            <select id="disturbance-gauge" aria-describedby="disturbance-gauge-detail"></select>
+            <span id="disturbance-gauge-detail"></span>
+          </div>
+          <div class="disturbance-field">
+            <label for="disturbance-pulse">Pulse size</label>
+            <select id="disturbance-pulse"></select>
+          </div>
+          <div class="disturbance-actions">
+            <button class="button primary" id="disturbance-run" type="button">Run simulated pulse <span aria-hidden="true">▶</span></button>
+            <button class="button text-button" id="disturbance-suggest" type="button" hidden>Use suggested setup</button>
+          </div>
+          <div class="disturbance-verdict" id="disturbance-verdict" role="status" aria-atomic="true">
+            <span class="eyebrow" id="disturbance-result-label"></span>
+            <strong id="disturbance-result"></strong>
+            <p id="disturbance-result-detail"></p>
+          </div>
+          <div class="disturbance-gap">
+            <span class="eyebrow">ABSURDITY GAP</span>
+            <strong id="disturbance-gap"></strong>
+            <p class="muted" id="disturbance-gap-detail"></p>
+          </div>
+        </div>
+        <figure class="disturbance-figure">
+          <figcaption class="disturbance-chart-head">
+            <span class="eyebrow">MODELED RADIUS (r)</span>
+            <span class="tag" id="disturbance-chart-mode">NO PULSE</span>
+          </figcaption>
+          <div class="disturbance-plot">
+            <svg id="disturbance-chart" viewBox="0 0 680 270" role="img" aria-labelledby="disturbance-chart-title disturbance-chart-description">
+              <title id="disturbance-chart-title">Modeled responses to a simulated pulse</title>
+              <desc id="disturbance-chart-description">All three models overlap before a pulse.</desc>
+              <g id="disturbance-drawing" aria-hidden="true"></g>
+            </svg>
+            <ul class="disturbance-legend" id="disturbance-legend" aria-label="Chart legend"></ul>
+          </div>
+          <div class="disturbance-transport">
+            <label for="disturbance-sample">Sample time</label>
+            <input id="disturbance-sample" type="range" min="0" max="1" step="1" value="0">
+            <output for="disturbance-sample" id="disturbance-time"></output>
+          </div>
+          <ul class="disturbance-readings" id="disturbance-readings" aria-label="Gauge readings at the selected sample"></ul>
+          <p class="muted disturbance-groups" id="disturbance-groups"></p>
+          <details class="disturbance-samples">
+            <summary>View all gauge readings</summary>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Gauge readings by sample">
+              <table>
+                <caption class="sr-only" id="disturbance-table-caption">Gauge readings by sample</caption>
+                <thead id="disturbance-table-head"></thead>
+                <tbody id="disturbance-table-body"></tbody>
+              </table>
+            </div>
+          </details>
+        </figure>
+      </div>
+      <details class="phase-check" id="phase-check">
+        <summary>EntPTC phase test</summary>
+        <p class="muted">Eight phase states share the same entropy and memory. Take one phase reading at a time to see which states still fit.</p>
+        <p id="phase-status" role="status">Open to load the phase test.</p>
+        <div id="phase-test-controls" hidden>
+          <dl class="phase-metrics" id="phase-metrics"></dl>
+          <div class="disturbance-actions">
+            <button class="button primary" id="phase-read" type="button">Read next phase</button>
+            <button class="button secondary" id="phase-reset" type="button">Reset</button>
+          </div>
+          <ul class="phase-states" id="phase-states" aria-label="Phase states consistent with the readings"></ul>
+        </div>
+      </details>
+    </section>
 
     <details class="method">
       <summary>How to read this forecast</summary>

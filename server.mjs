@@ -5,14 +5,18 @@ import { networkInterfaces } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import { disturbanceTest } from './lib/disturbance.mjs';
 import { analyze } from './lib/engine.mjs';
 import { readEvidence } from './lib/evidence.mjs';
+import { phaseCheck } from './lib/phase-check.mjs';
 import { scenarios } from './lib/scenarios.mjs';
 
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
+  ['/disturbance.js', ['disturbance.js', 'text/javascript; charset=utf-8']],
+  ['/phase-check.js', ['phase-check.js', 'text/javascript; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']]
 ]);
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -188,6 +192,8 @@ export function createAppServer(available = scenarios, receiptDir = resolve('.re
       if (url.pathname === '/api/scenarios') {
         return json(response, 200, { scenarios: available.map(({ id, name, description, unit }) => ({ id, name, description, unit })) });
       }
+      if (url.pathname === '/api/disturbance') return json(response, 200, disturbanceTest());
+      if (url.pathname === '/api/phase-check') return json(response, 200, phaseCheck());
       if (!scenario) return json(response, 404, { error: 'Scenario or route not found.' });
       const analysis = scenarioAnalysis(scenario, url.searchParams.get('probe'), url.searchParams.get('outcome'));
       if (analysis.error) return json(response, analysis.status, { error: analysis.error });

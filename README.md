@@ -31,6 +31,12 @@ Open [localhost:2026](http://localhost:2026). The built-in scenarios run offline
 
 The contact check takes one minute. The portable meter takes four minutes and leaves both faults possible. The costs include the check and its effect on the response. In the clear-contact case, the auxiliary tank keeps the modeled peak at 864 barrels, 11 below shutdown.
 
+## Try the disturbance test
+
+Open **Disturbance test**. The same gauge reading fits three models. Apply a simulated pulse and watch one trace recover, one hold steady, and one grow. Relay finds the smallest available pulse that separates all three gauge readings by the exercise deadline and stays inside the exercise limit. Try **0.016** with the panel gauge and then the fine gauge. Select **0.080** to see a faster test blocked by the limit.
+
+The recovery equation comes from Christopher Ezernack’s [Toroidal Manifolds and Recursive Neural Dynamics](https://github.com/ezernackchristopher97-cloud/ENTPTCCONPAPER26/blob/main/paper/main.tex). The **Absurdity Gap** measures how far the pulse goes beyond the limit. Open **EntPTC phase test** to see eight states with the same entropy and memory readings, then narrow them down one phase at a time. These are separate simulation exercises. [Research methods](docs/method.md#disturbance-test)
+
 ## How the forecast works
 
 Each field reading updates which fault cases are still possible. The simulator advances the tank volume or temperature minute by minute and delays each action by the time spent checking and mobilizing. It compares response costs among plans that stay below the protective limit in every remaining modeled case. The animated replay shows the readings, action times, and downstream effects.
